@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Test 47</title>
+<title>Roadster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Michroma&display=swap" rel="stylesheet">
@@ -24,6 +24,15 @@
   button { font-family: inherit; }
   #bg { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
+  /* intro: red screen, then a circle opens from the centre onto the loading screen */
+  #intro { position: fixed; inset: 0; background: var(--red); display: grid; place-items: center; }
+  #intro span { font: 400 clamp(26px, 8vw, 54px) var(--f-display); letter-spacing: 0.22em; padding-left: 0.22em; color: #000;
+    opacity: 0; transform: scale(0.94); transition: opacity 0.5s ease, transform 1.2s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  body.intro-in #intro span { opacity: 1; transform: scale(1); }
+  #bg, #splash { clip-path: circle(150% at 50% 50%); transition: clip-path 1.05s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.45s ease; }
+  body.intro #bg, body.intro #splash { clip-path: circle(0% at 50% 50%); }
+  body.revealed #bg, body.revealed #splash { clip-path: none; transition: opacity 0.45s ease; }
+
   .screen { position: fixed; inset: 0; display: flex; transition: opacity 0.45s ease;
     padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px)); }
   .screen.off { opacity: 0; pointer-events: none; }
@@ -32,7 +41,7 @@
   #splash { align-items: flex-end; justify-content: center; }
   .load { width: min(320px, 100%); margin-bottom: max(11vh, 56px); display: grid; gap: 12px; text-align: center; }
   .load .mark { font: 400 13px var(--f-display); letter-spacing: 0.5em; padding-left: 0.5em; color: var(--silver); }
-  .load .mark b, .title .t2 { color: var(--red); font-weight: 400; }
+  .load .mark b { color: var(--red); font-weight: 400; }
   .bar { height: 2px; background: #141418; position: relative; overflow: hidden; }
   .bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--red-deep), var(--red)); box-shadow: 0 0 12px var(--red); }
   .status { display: flex; justify-content: space-between; font: 500 10px var(--f-ui); letter-spacing: 0.22em; color: var(--silver-dim); font-variant-numeric: tabular-nums; }
@@ -41,16 +50,16 @@
   /* menu */
   #menu { align-items: flex-end; justify-content: center;
     background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.92) 100%); }
-  .menu { width: min(440px, 100%); display: flex; flex-direction: column; gap: 16px; padding-block: 28px; }
+  .menu { width: min(460px, 100%); display: flex; flex-direction: column; gap: 16px; padding-block: 28px; }
   @media (min-width: 900px) and (min-height: 560px) {
     #menu { align-items: center; justify-content: flex-start; padding-left: max(8vw, 16px);
       background: linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 38%, rgba(0,0,0,0) 62%); }
   }
   .eyebrow { margin: 0; font: 500 10px var(--f-ui); letter-spacing: 0.32em; color: var(--silver-dim); display: flex; align-items: center; gap: 10px; }
   .eyebrow::before { content: ""; width: 18px; height: 2px; background: var(--red); flex: none; }
-  .title { margin: 0; font: 400 clamp(54px, 16vw, 92px) / 0.92 var(--f-display); letter-spacing: -0.02em; display: flex; gap: 0.14em; align-items: baseline; text-wrap: balance; }
+  .title { margin: 0; font: 400 clamp(36px, 10.6vw, 60px) / 1 var(--f-display); letter-spacing: 0.02em; display: grid; gap: 12px; }
   .title .t1 { background: linear-gradient(180deg, #fff 0%, #cfd2d8 48%, #6b6e77 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .title .t2 { text-shadow: 0 0 28px rgba(255, 42, 58, 0.45); }
+  .title .t2 { display: block; width: 64px; height: 3px; background: var(--red); box-shadow: 0 0 18px rgba(255, 42, 58, 0.7); }
   .tag { margin: 0; font: 400 15px/1.5 var(--f-ui); color: #a9acb4; max-width: 36ch; }
   .field { display: grid; gap: 6px; }
   .field span { font: 500 10px var(--f-ui); letter-spacing: 0.28em; color: var(--silver-dim); }
@@ -126,15 +135,20 @@
     color: var(--silver); font: 600 20px var(--f-ui); display: flex; align-items: center; justify-content: center; }
   .btn.on { border-color: var(--red); color: #fff; background: linear-gradient(180deg, #2a0509, #110204); box-shadow: 0 0 16px rgba(255, 42, 58, 0.45); }
   .btn.wide { width: 88px; font-size: 11px; letter-spacing: 0.14em; }
-  @media (prefers-reduced-motion: reduce) { .screen { transition: none; } .primary { transition: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .screen, .primary, #bg, #intro span { transition: none; }
+    body.intro #bg, body.intro #splash { clip-path: none; opacity: 0; }
+  }
 </style>
 </head>
 <body>
+<div id="intro" aria-hidden="true"><span>ROADSTER</span></div>
+<script>document.body.classList.add('intro');</script>
 <canvas id="bg"></canvas>
 
 <div id="splash" class="screen">
   <div class="load">
-    <div class="mark">TEST <b>47</b></div>
+    <div class="mark">ROADSTER<b>.</b></div>
     <div class="bar"><i id="loadBar"></i></div>
     <div class="status"><span id="loadText">CARGANDO GAS FRÍO</span><span id="loadPct">0%</span></div>
     <div class="skip" id="skipHint"></div>
@@ -144,7 +158,7 @@
 <div id="menu" class="screen off">
   <div class="menu">
     <p class="eyebrow">SUCCIÓN MULTIMODO · GAS FRÍO</p>
-    <h1 class="title"><span class="t1">TEST</span><span class="t2">47</span></h1>
+    <h1 class="title"><span class="t1">ROADSTER</span><span class="t2" aria-hidden="true"></span></h1>
     <p class="tag">Subí la rampa con succión, salí boca abajo y aterrizá con las cuatro ruedas usando gas frío.</p>
     <label class="field"><span>PILOTO</span><input id="pilot" maxlength="14" autocomplete="off" spellcheck="false" placeholder="TU NOMBRE" aria-describedby="pilotErr">
       <p class="field-err" id="pilotErr" hidden></p></label>
@@ -629,13 +643,20 @@ Promise.race([
   new Promise(r => setTimeout(r, 3000)),
 ]).then(() => { splash.fonts = true; });
 $('splash').addEventListener('pointerdown', () => { ensureAudio(); if (splash.ready) enterMenu(); });
+const introHold = store.get('t47_seen') ? 450 : 850;
+requestAnimationFrame(() => document.body.classList.add('intro-in'));
+setTimeout(() => {
+  document.body.classList.remove('intro');
+  splash.t0 = performance.now();
+  setTimeout(() => { document.body.classList.add('revealed'); $('intro').hidden = true; }, 1150);
+}, introHold);
 const LOAD_STEPS = ['CARGANDO GAS FRÍO', 'CALIBRANDO SUCCIÓN', 'ALINEANDO PROPULSORES', 'LISTO'];
 function stepSplash(now) {
   let p = Math.min(1, (now - splash.t0) / splash.min);
   if (!splash.fonts) p = Math.min(p, 0.92);
   $('loadBar').style.width = (p * 100).toFixed(1) + '%';
   $('loadPct').textContent = Math.round(p * 100) + '%';
-  $('loadText').textContent = LOAD_STEPS[Math.min(3, Math.floor(p * 3.999))];
+  $('loadText').textContent = p >= 1 ? LOAD_STEPS[3] : LOAD_STEPS[Math.min(2, Math.floor(p * 3))];
   if (p >= 1 && !splash.ready) {
     splash.ready = true;
     $('skipHint').textContent = isTouch ? 'TOCÁ PARA ENTRAR' : 'PRESIONÁ CUALQUIER TECLA';

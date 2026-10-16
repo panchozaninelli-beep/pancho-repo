@@ -1,8 +1,8 @@
-# Test 47 — aterrizaje con succión y gas frío
+# Roadster — aterrizaje con succión y gas frío
 
 Juego en un solo archivo (`index.html`, sin dependencias). Abrilo en el navegador.
 
-Al entrar hay una pantalla de carga con el auto volando y un menú con START, niveles, ranking y sonido. ESC vuelve al menú durante el juego.
+Al entrar hay una pantalla roja que se abre en círculo hacia la pantalla de carga con el auto volando y un menú con START, niveles, ranking y sonido. ESC vuelve al menú durante el juego.
 
 El ranking mundial usa la base de datos del artifact publicado en claude.ai; abriendo el archivo local se muestra solo tu puntaje.
 
