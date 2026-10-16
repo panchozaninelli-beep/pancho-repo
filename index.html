@@ -125,10 +125,23 @@
     padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
   #stage { position: relative; }
   #c { display: block; background: #000; }
-  .tb { all: unset; position: absolute; top: 8px; cursor: pointer; font: 600 10px var(--f-ui); letter-spacing: 0.22em; color: var(--silver-dim);
+  .tbar { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 6px; pointer-events: none; }
+  .tbar .gap { flex: 1; }
+  .tb { all: unset; pointer-events: auto; cursor: pointer; font: 600 10px var(--f-ui); letter-spacing: 0.22em; color: var(--silver-dim);
     padding: 7px 10px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.55); }
   .tb:hover { color: #fff; border-color: var(--line-strong); }
-  #menuBtn { left: 8px; } #soundTb { right: 8px; }
+  #shareBtn { all: unset; position: absolute; cursor: pointer; font: 700 11px var(--f-ui); letter-spacing: 0.2em; color: #000;
+    background: var(--red); padding: 10px 14px; box-shadow: 0 8px 24px -8px rgba(255, 42, 58, 0.8); }
+  #shareBtn:focus-visible, .linkbtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .chase { margin: 0; font: 500 13px/1.45 var(--f-ui); color: #c4c7ce; }
+  .chase b { color: #fff; font-weight: 600; }
+  .linkbtn { all: unset; cursor: pointer; justify-self: start; font: 600 11px var(--f-ui); letter-spacing: 0.2em; color: var(--red); padding: 4px 0; }
+  .linkbtn:hover { color: #fff; }
+  #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 12px); opacity: 0; z-index: 20;
+    font: 600 12px var(--f-ui); letter-spacing: 0.18em; color: #000; background: var(--silver); padding: 10px 16px; transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #shareText { all: unset; box-sizing: border-box; width: 100%; min-height: 96px; padding: 12px; border: 1px solid var(--line-strong); font: 500 14px/1.5 var(--f-ui);
+    color: #fff; background: #0a0a0c; user-select: text; -webkit-user-select: text; white-space: pre-wrap; }
   #pad { display: none; gap: 8px; padding: 10px 0 12px; }
   body.touch #pad { display: flex; }
   .btn { width: 62px; height: 58px; box-sizing: border-box; border: 1px solid #2a2b30; border-radius: 10px; background: linear-gradient(180deg, #121216, #060608);
@@ -168,12 +181,14 @@
       <button class="ghost" id="rankBtn">RANKING</button>
       <button class="ghost" id="soundBtn">SONIDO</button>
     </div>
+    <p class="chase" id="chase" hidden></p>
     <div class="stats">
       <div><b id="stTotal">0</b><span>PUNTOS</span></div>
-      <div><b id="stLevel">0/7</b><span>SUPERADOS</span></div>
+      <div><b id="stLevel">0/8</b><span>SUPERADOS</span></div>
       <div><b id="stTests">0</b><span>TESTS</span></div>
       <div><b id="stRank">—</b><span>PUESTO</span></div>
     </div>
+    <button class="linkbtn" id="shareMenu" hidden>COMPARTIR MI PUNTAJE →</button>
     <p class="hint">ENTER PARA EMPEZAR · ESC VUELVE AL MENÚ</p>
   </div>
 </div>
@@ -195,11 +210,25 @@
   </div>
 </div>
 
+<div id="shareSheet" class="sheet" hidden>
+  <div class="sheet-in">
+    <div class="sheet-head"><h2>COMPARTIR</h2><button class="close" data-close>CERRAR ✕</button></div>
+    <p class="rank-meta">COPIÁ ESTE TEXTO Y MANDALO</p>
+    <textarea id="shareText" readonly></textarea>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
 <div id="game" hidden>
   <div id="stage">
     <canvas id="c"></canvas>
-    <button class="tb" id="menuBtn">MENÚ</button>
-    <button class="tb" id="soundTb">SONIDO</button>
+    <div class="tbar">
+      <button class="tb" id="menuBtn">MENÚ</button>
+      <span class="gap"></span>
+      <button class="tb" id="pauseBtn">PAUSA</button>
+      <button class="tb" id="soundTb">SONIDO</button>
+    </div>
+    <button id="shareBtn" hidden>COMPARTIR PUNTAJE</button>
   </div>
   <div id="pad">
     <div class="btn" data-k="left">⟲</div>
@@ -287,13 +316,24 @@ const LEVELS = [
   { pad: -150, w: 275, gas: 100, wind: 0 },
   { pad: -380, w: 210, gas: 100, wind: 0 },
   { pad: -220, w: 165, gas: 80, wind: 0 },
+  { pad: -420, w: 185, gas: 90, wind: 15 },
   { pad: -560, w: 165, gas: 90, wind: 30 },
   { pad: -150, w: 140, gas: 75, wind: -35 },
   { pad: -900, w: 140, gas: 100, wind: 0 },
   { pad: -420, w: 115, gas: 65, wind: 45 },
 ];
 const EXIT_X = 190;
-const EASY_LEVELS = 3, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-3 get one 5 s slow-motion assist per attempt
+const EASY_LEVELS = 4, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-4 get one 5 s slow-motion assist per attempt
+const LEVEL_TIPS = [
+  'Salí despacio de la rampa: la zona está cerca.',
+  'La zona está más lejos: salí más rápido.',
+  'Poco gas: apagá la succión en el tramo plano.',
+  'Primer viento, suave: te frena un poco en el aire.',
+  'Viento en contra y zona lejos: salí muy rápido.',
+  'El viento te empuja hacia afuera: salí lento.',
+  'Salto largo: salí a fondo y guardá gas para frenar.',
+  'Final: viento fuerte, poco gas y zona angosta.',
+];
 let level = 0, unlocked = 0;
 const lvl = () => LEVELS[level];
 const padDist = L => Math.round((EXIT_X - L.pad) / 10);
@@ -384,16 +424,61 @@ function save() {
 const totalPoints = () => Object.values(bests).reduce((a, b) => a + b, 0);
 const levelsPassed = () => Object.keys(bests).length;
 
-// ---------- ranking (shared db when the page runs as a claude.ai artifact) ----------
-const rank = { db: null, uid: null, rows: [], live: false, readOnly: false, lastSent: '', owner: false };
+// ---------- ranking: the artifact's shared db on claude.ai, Supabase when self-hosted, else local ----------
+// Self-hosting: run supabase.sql in your Supabase project, then paste its URL and public anon key here.
+const SUPABASE_URL = '';
+const SUPABASE_KEY = '';
+const ARTIFACT_URL = 'https://claude.ai/artifact/7hPwpAccKhfC2vqipYFvRf';
+const rank = { mode: 'local', db: null, uid: null, rows: [], live: false, readOnly: false, lastSent: '', owner: false };
+let deviceToken = store.get('t47_token');
+if (!deviceToken) {
+  deviceToken = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  store.set('t47_token', deviceToken);
+}
+let claimed = [];
+try { claimed = JSON.parse(store.get('t47_claimed') || '[]') || []; } catch (e) { claimed = []; }
+function sb(path, opts = {}) {
+  return fetch(SUPABASE_URL + path, { ...opts, headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' } })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+}
+async function loadSupabase() {
+  try {
+    const rows = await sb('/rest/v1/scores?select=name,total,passed&order=total.desc&limit=100');
+    rank.rows = rows.map(r => ({ id: r.name, ...r })); rank.live = true;
+  } catch (e) { rank.live = false; }
+  rank.uid = claimed.includes(pilotName) ? pilotName : null;
+  renderRank(); refreshMenu();
+}
+function submitSupabase() {
+  const name = pilotName || 'PILOTO';
+  const body = { p_name: name, p_token: deviceToken, p_total: totalPoints(), p_passed: levelsPassed(), p_bests: { ...bests } };
+  const key = JSON.stringify(body);
+  if (key === rank.lastSent) return;
+  rank.lastSent = key;
+  writing = writing
+    .then(() => sb('/rest/v1/rpc/submit_score', { method: 'POST', body: JSON.stringify(body) }))
+    .then(res => {
+      if (res === 'ok') { if (!claimed.includes(name)) { claimed.push(name); store.set('t47_claimed', JSON.stringify(claimed)); } }
+      else if (res === 'taken') showNameError(`"${name}" ya está en el ranking. Elegí otro nombre.`);
+      return loadSupabase();
+    })
+    .catch(() => { rank.lastSent = ''; });
+}
 let writing = Promise.resolve();
 const cleanName = s => String(s || '').toUpperCase().replace(/[^A-Z0-9ÁÉÍÓÚÜÑ _.\-]/g, '').trim().slice(0, 14);
 async function initRanking() {
+  const useSupabase = () => {
+    if (!SUPABASE_URL || !SUPABASE_KEY) { renderRank(); refreshMenu(); return; }
+    rank.mode = 'supabase';
+    loadSupabase().then(submitScore);
+    setInterval(() => { if (screen !== 'game') loadSupabase(); }, 30000);
+  };
   const use = window.claude && window.claude.use;
-  if (!use) { renderRank(); refreshMenu(); return; }
+  if (!use) { useSupabase(); return; }
   try {
     const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
-    if (!db) { renderRank(); refreshMenu(); return; }
+    if (!db) { useSupabase(); return; }
+    rank.mode = 'artifact';
     rank.db = db;
     rank.uid = user ? await user.id() : null;
     rank.owner = user ? await user.isOwner() : false;
@@ -416,7 +501,9 @@ async function initRanking() {
   refreshMenu();
 }
 function submitScore() {
-  if (!rank.db || !rank.uid || rank.readOnly || totalPoints() <= 0) return;
+  if (totalPoints() <= 0) return;
+  if (rank.mode === 'supabase') { submitSupabase(); return; }
+  if (!rank.db || !rank.uid || rank.readOnly) return;
   const body = { name: pilotName || 'PILOTO', total: totalPoints(), passed: levelsPassed(), bests: { ...bests } };
   const key = JSON.stringify(body);
   if (key === rank.lastSent) return;
@@ -449,7 +536,28 @@ function myRank() {
 // a name already on the board belongs to whoever holds it; the game's owner may use any name
 function nameTaken(n) {
   if (!n || rank.owner) return false;
+  if (rank.mode === 'supabase') return !claimed.includes(n) && rank.rows.some(r => cleanName(r.name) === n);
   return rank.rows.some(r => cleanName(r.name) === n && r.id !== rank.uid);
+}
+// the next place up the ranking, for the menu
+function chaseText() {
+  const rows = rank.live ? board() : [], me = myRank(), mine = me ? rows[me - 1].total : totalPoints();
+  const fmt = n => (n || 0).toLocaleString('es-AR');
+  if (!mine) return rows.length ? `Superá el nivel 1 para entrar al ranking. El #1 es <b></b> con ${fmt(rows[0].total)} pts.` : '';
+  if (!rank.live) return '';
+  if (me === 1) return 'Sos el <b>#1</b> del ranking. Que nadie te pase.';
+  let i = me ? me - 2 : rows.length - 1;
+  while (i > 0 && (rows[i].total || 0) <= mine) i--;
+  const t = rows[i];
+  if (!t || (t.total || 0) <= mine) return '';
+  return `Te faltan <b>${fmt(t.total - mine + 1)} pts</b> para pasar a <b></b> (#${i + 1}).`;
+}
+function chaseName() {
+  const rows = rank.live ? board() : [], me = myRank(), mine = me ? rows[me - 1].total : totalPoints();
+  if (!mine) return rows[0] ? rows[0].name : '';
+  let i = me ? me - 2 : rows.length - 1;
+  while (i > 0 && (rows[i].total || 0) <= mine) i--;
+  return rows[i] ? rows[i].name : '';
 }
 function showNameError(msg) {
   const e = $('pilotErr'), i = $('pilot');
@@ -470,12 +578,12 @@ function renderRank() {
   if (rank.live) {
     const rows = board();
     meta.textContent = `TOP MUNDIAL · ${rows.length} ${rows.length === 1 ? 'PILOTO' : 'PILOTOS'} · SUMA DEL MEJOR PUNTAJE DE CADA NIVEL`;
-    rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), r.name, `${r.passed || 0}/7`, (r.total || 0).toLocaleString('es-AR'), r.ids.includes(rank.uid)));
+    rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), r.name, `${r.passed || 0}/${LEVELS.length}`, (r.total || 0).toLocaleString('es-AR'), r.ids.includes(rank.uid)));
     if (!rows.length) {
       const li = document.createElement('li'); li.className = 'empty';
       li.textContent = 'Todavía no hay pilotos. Superá el nivel 1 y quedás primero.'; list.appendChild(li);
     } else if (!myRank() && totalPoints() > 0) {
-      row('—', pilotName || 'VOS', `${levelsPassed()}/7`, totalPoints().toLocaleString('es-AR'), true);
+      row('—', pilotName || 'VOS', `${levelsPassed()}/${LEVELS.length}`, totalPoints().toLocaleString('es-AR'), true);
     }
     if (rank.readOnly) {
       note.hidden = false;
@@ -487,9 +595,32 @@ function renderRank() {
       note.hidden = false;
       note.textContent = 'El ranking mundial funciona cuando abrís el juego desde su link publicado. Acá se muestra tu puntaje.';
     }
-    if (totalPoints() > 0) row('01', pilotName || 'VOS', `${levelsPassed()}/7`, totalPoints().toLocaleString('es-AR'), true);
+    if (totalPoints() > 0) row('01', pilotName || 'VOS', `${levelsPassed()}/${LEVELS.length}`, totalPoints().toLocaleString('es-AR'), true);
     else { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Superá un nivel para sumar puntos.'; list.appendChild(li); }
   }
+}
+
+// ---------- sharing ----------
+function shareUrl() { return window.claude && window.claude.use ? ARTIFACT_URL : location.href.split('#')[0]; }
+function shareMessage() {
+  const r = myRank();
+  return `Hice ${totalPoints().toLocaleString('es-AR')} puntos en ROADSTER y superé ${levelsPassed()}/${LEVELS.length} niveles` +
+         `${r ? ` (puesto #${r} del ranking)` : ''}. ¿Me superás? ${shareUrl()}`;
+}
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2200);
+}
+function shareScore() {
+  const text = shareMessage();
+  const fallback = () => { $('shareText').value = text; openSheet('shareSheet'); $('shareText').select(); };
+  const copy = () => {
+    if (!navigator.clipboard) { fallback(); return; }
+    navigator.clipboard.writeText(text).then(() => toast('COPIADO · PEGALO DONDE QUIERAS'), fallback);
+  };
+  if (!(window.claude && window.claude.use) && navigator.share) navigator.share({ text }).catch(e => { if (e && e.name !== 'AbortError') copy(); });
+  else copy();
 }
 
 // ---------- input ----------
@@ -502,6 +633,9 @@ addEventListener('keydown', e => {
   if (screen !== 'game') { menuKey(e); return; }
   if (e.code === 'Escape') { goMenu(); return; }
   if (e.code === 'KeyM') setMuted(!muted);
+  if (e.code === 'KeyP') { togglePause(); return; }
+  if (paused) { if (KEYMAP[e.code] || e.code === 'Space') { e.preventDefault(); togglePause(false); } return; }
+  if (KEYMAP[e.code] === 'up' && !e.repeat && canRetry()) reset(true);   // one press of ↑ goes straight back up the ramp
   const n = /^Digit([1-9])$/.exec(e.code);
   if (n && +n[1] - 1 <= unlocked && state.mode !== 'ramp' && state.mode !== 'air') { level = +n[1] - 1; save(); reset(false); }
   if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; e.preventDefault(); onInput(); }
@@ -516,9 +650,22 @@ const suctionBtn = document.querySelector('[data-k="space"]');
 function toggleSuction() { state.suction = !state.suction; syncSuctionBtn(); }
 const canSlow = () => state.mode === 'air' && level < EASY_LEVELS && !state.slowUsed;
 // space: restart when the attempt is over, slow motion in the air (easy levels), suction toggle otherwise
+const ended = () => state.mode === 'landed' || state.mode === 'crashed';
+const canRetry = () => ended() && performance.now() - state.endedAt > 450;
+let paused = false;
+function togglePause(force) {
+  const next = force == null ? !paused : force;
+  if (next && state.mode !== 'ramp' && state.mode !== 'air') return;
+  paused = next;
+  for (const k in keys) keys[k] = false;
+  document.querySelectorAll('.btn.on').forEach(b => b.classList.remove('on'));
+  $('pauseBtn').textContent = paused ? 'SEGUIR' : 'PAUSA';
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && screen === 'game') togglePause(true); });
 function spaceAction() {
   const c = state;
-  if (c.mode === 'landed' || c.mode === 'crashed') reset(true);
+  if (paused) { togglePause(false); return; }
+  if (ended()) { if (canRetry()) reset(true); }
   else if (canSlow()) { c.slowUsed = true; c.slowLeft = SLOW_TIME; sfx('slow'); }
   else if (c.mode === 'ready' || c.mode === 'ramp') toggleSuction();
 }
@@ -531,12 +678,17 @@ function syncSuctionBtn() {
 suctionBtn.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); spaceAction(); });
 document.querySelectorAll('.btn:not([data-k="space"])').forEach(b => {
   const k = b.dataset.k;
-  const on = e => { e.preventDefault(); ensureAudio(); keys[k] = true; b.classList.add('on'); onInput(); };
+  const on = e => {
+    e.preventDefault(); ensureAudio();
+    if (paused) { togglePause(false); return; }
+    if (k === 'up' && canRetry()) reset(true);
+    keys[k] = true; b.classList.add('on'); onInput();
+  };
   const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); if (k === 'up') state.armed = true; };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
   b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
 });
-cv.addEventListener('pointerdown', () => { ensureAudio(); if (state.mode === 'landed' || state.mode === 'crashed') reset(true); });
+cv.addEventListener('pointerdown', () => { ensureAudio(); if (paused) togglePause(false); else if (canRetry()) reset(true); });
 
 // ---------- screens ----------
 const firstTime = () => store.get('t47_played') !== '1';
@@ -562,6 +714,7 @@ function enterMenu() {
   if (!isTouch) $('startBtn').focus({ preventScroll: true });
 }
 function goMenu() {
+  togglePause(false);
   for (const k in keys) keys[k] = false;
   document.querySelectorAll('.btn.on').forEach(b => b.classList.remove('on'));
   screen = 'menu';
@@ -599,6 +752,13 @@ function refreshMenu() {
   const r = myRank();
   $('stRank').textContent = r ? '#' + r : '—';
   if (document.activeElement !== $('pilot')) $('pilot').value = pilotName;
+  const ch = chaseText(), chase = $('chase');
+  chase.hidden = !ch;
+  if (ch) {   // names are other players' input: put them in with textContent
+    chase.innerHTML = ch;
+    const slot = chase.querySelector('b:empty'); if (slot) slot.textContent = chaseName();
+  }
+  $('shareMenu').hidden = totalPoints() <= 0;
   syncSoundLabels();
 }
 function renderLevels() {
@@ -621,6 +781,9 @@ function renderLevels() {
   });
 }
 $('startBtn').addEventListener('click', () => startGame());
+$('shareMenu').addEventListener('click', shareScore);
+$('shareBtn').addEventListener('click', e => { e.stopPropagation(); shareScore(); });
+$('pauseBtn').addEventListener('click', e => { e.stopPropagation(); togglePause(); });
 $('levelsBtn').addEventListener('click', () => { renderLevels(); openSheet('levelsSheet'); });
 $('rankBtn').addEventListener('click', () => { renderRank(); openSheet('rankSheet'); });
 $('soundBtn').addEventListener('click', () => { setMuted(!muted); ensureAudio(); });
@@ -665,7 +828,7 @@ function stepSplash(now) {
 }
 
 // ---------- state ----------
-let state, particles, trail, flash;
+let state, particles, trail, flash, flashCol = '255,42,58', shake = 0;
 function reset(next) {
   if (next) {
     testNo++;
@@ -675,8 +838,9 @@ function reset(next) {
   state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: lvl().gas,
             exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
             passed: false, onPad: false, miss: 0, slowUsed: false, slowLeft: 0, newBest: false,
+            endedAt: 0, path: [], land: null, near: false,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
-  particles = []; trail = []; flash = 0; camX = 0;
+  particles = []; trail = []; flash = 0; camX = 0; shake = 0;
   placeOnTrack();
   syncSuctionBtn();
 }
@@ -747,13 +911,17 @@ function stepAir(dt) {
   const pts = [[-23, 11], [23, 11], [-36, 0], [36, 0], [-12, -15], [12, -15]];
   const cs = Math.cos(c.th), sn = Math.sin(c.th);
   const low = Math.max(...pts.map(([lx, ly]) => c.y + lx * sn + ly * cs));
+  // last stretch before the floor plays at half speed
+  c.near = c.vy > 30 && FLOOR - low < 70;
+  if (c.path.length === 0 || Math.hypot(c.x - c.path[c.path.length - 1][0], c.y - c.path[c.path.length - 1][1]) > 6) c.path.push([c.x, c.y]);
   if (low >= FLOOR) touchdown();
 }
 
 function touchdown() {
   const c = state, ang = Math.abs(norm(c.th)) * 180 / Math.PI;
-  c.slowLeft = 0;
+  c.slowLeft = 0; c.near = false; c.endedAt = performance.now();
   const vy = c.vy / 10, vx = Math.abs(c.vx) / 10, w = Math.abs(c.w);
+  c.land = { ang, vy, vx, w };
   const r = [];
   if (ang > 12) r.push(ang > 90 ? 'CAYÓ DE TECHO' : `INCLINADO ${ang.toFixed(0)}°`);
   if (vy > 12) r.push(`IMPACTO ${vy.toFixed(1)} m/s`);
@@ -761,14 +929,14 @@ function touchdown() {
   if (w > 2) r.push('GIRANDO');
   c.reasons = r;
   if (r.length) {
-    c.mode = 'crashed'; flash = 1; sfx('crash');
+    c.mode = 'crashed'; flash = 1; flashCol = '255,42,58'; shake = 16; sfx('crash');
     for (let i = 0; i < 60; i++) {
       const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 240;
       particles.push({ x: c.x, y: Math.min(c.y, FLOOR - 4), vx: Math.cos(a) * s + c.vx * 0.3, vy: -Math.abs(Math.sin(a) * s),
                        life: 1.4, max: 1.4, r: 1.5 + Math.random() * 2.5, col: Math.random() < 0.3 ? '255,42,58' : '230,230,235', g: true });
     }
   } else {
-    c.mode = 'landed'; sfx('land');
+    c.mode = 'landed'; sfx('land'); shake = 5;
     const L = lvl(), off = Math.abs(c.x - L.pad);
     c.onPad = off <= L.w / 2;
     if (c.onPad) {
@@ -778,6 +946,8 @@ function touchdown() {
       if (c.score > best) best = c.score;
       if (c.score > (bests[level] || 0)) { bests[level] = c.score; c.newBest = true; }
       save(); sfx('win'); submitScore();
+      flash = 0.8; flashCol = '91,227,138';
+      if (!store.get('t47_coach_done')) store.set('t47_coach_done', '1');
     } else {
       c.miss = (off - L.w / 2) / 10;   // metres from the nearest pad edge
     }
@@ -819,6 +989,7 @@ function step(dt) {
   }
   particles = particles.filter(p => p.life > 0);
   flash = Math.max(0, flash - dt * 2);
+  shake = Math.max(0, shake - dt * 40);
   const wnd = lvl().wind;
   if (wnd) for (const s of windStreaks) {
     s.x += wnd * 5 * dt;
@@ -967,13 +1138,22 @@ function predictPath() {
 function drawPrediction() {
   const pts = predictPath(); if (!pts) return;
   const L = lvl(), ex = pts[pts.length - 1][0];
-  const col = Math.abs(ex - L.pad) <= L.w / 2 ? '91,227,138' : '255,74,88';
+  const hit = Math.abs(ex - L.pad) <= L.w / 2, col = hit ? '91,227,138' : '255,74,88';
   ctx.save(); ctx.setLineDash([3, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${col},0.55)`;
   ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
   ctx.setLineDash([]); ctx.strokeStyle = `rgba(${col},0.95)`; ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(ex - 6, FLOOR - 6); ctx.lineTo(ex + 6, FLOOR + 6); ctx.moveTo(ex + 6, FLOOR - 6); ctx.lineTo(ex - 6, FLOOR + 6);
+  if (hit) { ctx.arc(ex, FLOOR, 7, 0, 7); ctx.moveTo(ex - 3.5, FLOOR); ctx.lineTo(ex - 1, FLOOR + 3); ctx.lineTo(ex + 4, FLOOR - 3); }   // ✓ in a ring
+  else { ctx.moveTo(ex - 6, FLOOR - 6); ctx.lineTo(ex + 6, FLOOR + 6); ctx.moveTo(ex + 6, FLOOR - 6); ctx.lineTo(ex - 6, FLOOR + 6); }
   ctx.stroke(); ctx.restore();
+}
+
+function drawFlightPath() {
+  const c = state;
+  if (!ended() || c.path.length < 2) return;
+  ctx.save(); ctx.setLineDash([2, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(214,216,222,0.45)';
+  ctx.beginPath(); c.path.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  ctx.restore();
 }
 
 function drawWind() {
@@ -1054,7 +1234,7 @@ function attitude(cx, cy, r, th, good) {
 function envelopeRow(y, label, value, unit, v, max, limit) {
   const x0 = 136, x1 = 324, w = x1 - x0, good = v <= limit, col = good ? OK : '#ff4a58';
   txt(ctx, label, x0, y, `500 9px ${FU}`, DIM, 'left', 1.6);
-  txt(ctx, value, x1 - 24, y, `600 14px ${FU}`, col, 'right');
+  txt(ctx, (good ? '✓ ' : '✕ ') + value, x1 - 24, y, `600 14px ${FU}`, col, 'right');
   txt(ctx, unit, x1, y + 1, `500 9px ${FU}`, DIM, 'right');
   const by = y + 11;
   ctx.fillStyle = '#141418'; ctx.fillRect(x0, by, w, 3);
@@ -1091,7 +1271,7 @@ function drawHUD() {
 
   // right: attitude
   attitude(W - 66, 866, 42, c.th, ang <= 12);
-  txt(ctx, `ACTITUD ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`, ang <= 12 ? OK : DIM, 'center', 2);
+  txt(ctx, `${ang <= 12 ? '✓' : '✕'} ACTITUD ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`, ang <= 12 ? OK : DIM, 'center', 2);
 
   // centre: speed on the ramp, landing envelope in the air
   if (!air) {
@@ -1153,39 +1333,45 @@ function banner(text, y, col) { txt(ctx, text, W / 2, y, `600 12px ${FU}`, col, 
 function drawOverlay() {
   const c = state, SUB = '#b5b8bf';
   const act = (touch, key) => isTouch ? touch : key;
+  const retry = act('TOCÁ O ▲ PARA REINTENTAR', '↑ O ESPACIO · REINTENTAR');
   if (c.mode === 'ready') {
-    const L = lvl();
-    panel([[`NIVEL ${level + 1} · ZONA ${padDist(L)} m`, 'T', OK],
-           [`1  Subí la rampa con ${act('▲', '↑')}. La succión`, 'S', SUB],
-           ['    arranca prendida: te pega a la pared.', 'S', SUB],
-           [`2  Salís boca abajo: girá con ${act('⟲ ⟳', '← →')}.`, 'S', SUB],
-           [`3  Frená la caída con ${act('▲', '↑')}: empuja`, 'S', SUB],
-           ['    hacia donde apunta el techo.', 'S', SUB],
-           ['4  Caé con las 4 ruedas dentro de la zona:', 'S', SUB],
-           ['    menos de 12° y de 12 m/s.', 'S', SUB],
-           ['La línea punteada muestra dónde caés.', 'S', DIM],
-           ...(level < EASY_LEVELS ? [[`AYUDA: ${act('LENTO', 'ESPACIO')} en el aire = cámara lenta`, 'S', '#7fb8ff']] : []),
-           [act('MANTENÉ ▲ PARA ARRANCAR', 'MANTENÉ ↑ PARA ARRANCAR'), 'A', RED]], 290);
+    const L = lvl(), w = L.wind / 10;
+    if (coachOn()) {
+      panel([[`NIVEL ${level + 1} · ZONA ${padDist(L)} m`, 'T', OK],
+             ['Llevá el auto a la zona verde', 'S', '#e6e7ea'],
+             ['y caé con las cuatro ruedas.', 'S', '#e6e7ea'],
+             ['Te voy guiando en cada paso.', 'S', SUB]], 290);
+    } else {
+      panel([[`NIVEL ${level + 1} · ZONA ${padDist(L)} m`, 'T', OK],
+             [`Gas ${L.gas}% · ${w ? `viento ${w > 0 ? '→' : '←'} ${Math.abs(w).toFixed(1)} m/s²` : 'sin viento'}${level < EASY_LEVELS ? ' · con ayuda' : ''}`, 'S', SUB],
+             [LEVEL_TIPS[level], 'S', '#e6e7ea'],
+             [act('MANTENÉ ▲ PARA ARRANCAR', 'MANTENÉ ↑ PARA ARRANCAR'), 'A', RED]], 290);
+    }
   } else if (c.mode === 'landed' && !c.onPad) {
     const short = c.x > lvl().pad;   // the car flies left, so landing right of the pad means it fell short
     panel([['FUERA DE ZONA', 'T', '#ffb347'],
            ['El auto quedó entero.', 'S', '#e6e7ea'],
            [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m.`, 'S', '#e6e7ea'],
            [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', 'S', SUB],
-           [act('TOCÁ PARA REINTENTAR', 'ESPACIO · REINTENTAR'), 'A', RED]], 320);
+           [retry, 'A', RED]], 320);
   } else if (c.mode === 'landed') {
     const last = level === LEVELS.length - 1, r = myRank();
     panel([['ATERRIZAJE PERFECTO', 'T', OK],
            [`${c.score} PUNTOS${c.newBest ? '  ·  RÉCORD' : ''}`, 'B', '#fff'],
            [`Salida de rampa ${(c.exitSpeed / 10).toFixed(1)} m/s · gas ${c.gas.toFixed(0)}%`, 'S', SUB],
            [`Total ${totalPoints().toLocaleString('es-AR')} pts${r ? ` · puesto mundial #${r}` : ''}`, 'S', SUB],
-           [last ? 'Superaste los 7 niveles.' : `Desbloqueaste el nivel ${level + 2}.`, 'S', OK],
-           [act('TOCÁ PARA SEGUIR', 'ESPACIO · SEGUIR'), 'A', RED]], 320);
+           [last ? `Superaste los ${LEVELS.length} niveles.` : `Desbloqueaste el nivel ${level + 2}.`, 'S', OK],
+           [act('TOCÁ O ▲ PARA SEGUIR', '↑ O ESPACIO · SEGUIR'), 'A', RED]], 320);
+    placeShare(320 + 6 * 22 + 28);
   } else if (c.mode === 'crashed') {
+    const m = c.land, row = (ok, label, v, lim) => [`${ok ? '✓' : '✕'}  ${label} ${v}  ·  máx ${lim}`, 'S', ok ? OK : '#ff6b77'];
     panel([['IMPACTO · AUTO DESTRUIDO', 'T', '#ff4a58'],
-           ...c.reasons.map(r => [r, 'S', '#e6e7ea']),
-           ...(c.msg ? [['Se despegó de la rampa: ' + c.msg.toLowerCase(), 'S', '#e6e7ea']] : []),
-           [act('TOCÁ PARA REINTENTAR', 'ESPACIO · REINTENTAR'), 'A', RED]], 320);
+           row(m.ang <= 12, 'INCLINACIÓN', m.ang.toFixed(0) + '°', '12°'),
+           row(m.vy <= 12, 'CAÍDA', m.vy.toFixed(1) + ' m/s', '12 m/s'),
+           row(m.vx <= 13, 'DERIVA', m.vx.toFixed(1) + ' m/s', '13 m/s'),
+           ...(m.w > 2 ? [row(false, 'GIRO', m.w.toFixed(1) + ' rad/s', '2 rad/s')] : []),
+           [crashTip(m, c.msg), 'S', '#e6e7ea'],
+           [retry, 'A', RED]], 320);
   } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
     banner(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', 158, '#ff4a58');
   } else if (c.mode === 'air' && !c.armed && keys.up) {
@@ -1200,17 +1386,73 @@ function drawOverlay() {
     txt(ctx, `${act('LENTO', 'ESPACIO')}: CÁMARA LENTA 5 s`, W / 2, 180, `500 10px ${FU}`, 'rgba(127,184,255,0.85)', 'center', 1.5);
   }
   if (c.mode === 'air' && c.msg && !(!c.armed && keys.up)) banner(c.msg, 158, '#ff4a58');
+  const hint = coachHint();
+  if (hint) coachBanner(hint);
+  if (paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+    txt(ctx, 'PAUSA', W / 2, 430, `400 26px ${FD}`, '#fff', 'center', 6);
+    txt(ctx, act('TOCÁ PARA SEGUIR', 'P O CUALQUIER FLECHA PARA SEGUIR'), W / 2, 470, `600 11px ${FU}`, RED, 'center', 2);
+  }
 }
+
+// the one change that would have saved the attempt
+function crashTip(m, slipped) {
+  if (slipped) return 'Mantené la succión prendida en la pared.';
+  if (m.ang > 90) return 'Empezá a girar apenas salís de la rampa.';
+  if (m.ang > 12) return 'Enderezalo antes: falta girar un poco más.';
+  if (m.vy > 12) return `Mantené ${isTouch ? '▲' : '↑'} más tiempo cerca del piso.`;
+  if (m.vx > 13) return 'Inclinate contra la deriva para frenarla.';
+  return 'Soltá el giro antes de tocar el piso.';
+}
+
+// first-run guidance: what to do right now, until the first level is passed
+const coachOn = () => !store.get('t47_coach_done');
+function coachHint() {
+  const c = state;
+  if (!coachOn() || paused) return null;
+  const up = isTouch ? '▲' : '↑', dn = isTouch ? '▼' : '↓', l = isTouch ? '⟲' : '←', r = isTouch ? '⟳' : '→';
+  if (c.mode === 'ready') return `MANTENÉ ${up} PARA ACELERAR`;
+  if (c.mode === 'ramp') {
+    if (c.s < P.length - 320) return `MANTENÉ ${up} · LA SUCCIÓN TE PEGA A LA PARED`;
+    const pts = predictPath(), ex = pts ? pts[pts.length - 1][0] : 0, L = lvl();
+    if (Math.abs(ex - L.pad) <= L.w / 2) return `¡AHÍ! SOLTÁ ${up}: LA LÍNEA ESTÁ EN VERDE`;
+    return ex > L.pad ? `SEGUÍ CON ${up} HASTA QUE LA LÍNEA LLEGUE A LA ZONA` : `TE PASÁS: FRENÁ CON ${dn}`;
+  }
+  if (c.mode === 'air') {
+    const a = norm(c.th);
+    if (Math.abs(a) > 0.35) return `GIRÁ CON ${a > 0 ? l : r} HASTA PONERLO DERECHO`;
+    if (c.vy > 90) return `¡FRENÁ LA CAÍDA! MANTENÉ ${up}`;
+    return 'BIEN · BAJÁ SUAVE DENTRO DE LA ZONA';
+  }
+  return null;
+}
+function coachBanner(text) {
+  const y = 222, pulse = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+  ctx.font = `700 12px ${FU}`; ctx.letterSpacing = '1.5px';
+  const w = Math.min(W - 24, ctx.measureText(text).width + 36); ctx.letterSpacing = '0px';
+  ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(W / 2 - w / 2, y - 17, w, 34);
+  ctx.strokeStyle = `rgba(255,42,58,${pulse})`; ctx.lineWidth = 1.5; ctx.strokeRect(W / 2 - w / 2 + 0.5, y - 16.5, w - 1, 33);
+  txt(ctx, text, W / 2, y + 1, `700 12px ${FU}`, '#fff', 'center', 1.5);
+}
+
+// the share button sits under the result card, positioned in canvas units
+function placeShare(yCanvas) {
+  const b = $('shareBtn');
+  b.style.left = (24 / W * 100) + '%'; b.style.top = ((yCanvas + 10) / H * 100) + '%';
+  shareWanted = true;
+}
+let shareWanted = false;
 
 function draw() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.translate(-camX, 0);
+  ctx.save(); ctx.translate(-camX + (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   drawBackground();
   drawScaffold();
   drawReflection();
   drawGround();
   drawPad();
   drawPrediction();
+  drawFlightPath();
   drawWorld(1);
   ctx.restore();
   drawWind();
@@ -1223,10 +1465,12 @@ function draw() {
   if (camX < -W) {
     txt(ctx, `RAMPA ${Math.round((EXIT_X - state.x) / 10)} m ▶`, W - 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(255,255,255,0.4)', 'right', 1.5);
   }
-  if (flash) { ctx.fillStyle = `rgba(255,42,58,${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
+  if (flash) { ctx.fillStyle = `rgba(${flashCol},${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
   drawHeader();
   drawHUD();
+  shareWanted = false;
   drawOverlay();
+  $('shareBtn').hidden = !shareWanted || totalPoints() <= 0;
 }
 
 // ---------- splash & menu backdrop: the car flying over a dark floor ----------
@@ -1301,8 +1545,10 @@ const DT = 1 / 120;
 function frame(t) {
   const real = Math.min(0.1, (t - last) / 1000); last = t;
   if (screen === 'game') {
-    if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
-    acc += real;
+    if (!paused) {
+      if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
+      acc += real * (state.near ? 0.45 : 1);
+    }
     while (acc >= DT) { step(DT); acc -= DT; }
     draw();
     syncSuctionBtn();
