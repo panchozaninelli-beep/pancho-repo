@@ -75,7 +75,8 @@
   .primary small { font: 700 11px var(--f-ui); letter-spacing: 0.2em; color: rgba(0, 0, 0, 0.62); }
   .primary:hover { transform: translateY(-1px); box-shadow: 0 18px 46px -12px rgba(255, 42, 58, 0.9); }
   .primary:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  @media (min-width: 440px) { .row { grid-template-columns: repeat(4, 1fr); } }
   .ghost { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 12px 6px; border: 1px solid var(--line-strong);
     font: 600 11px var(--f-ui); letter-spacing: 0.2em; color: var(--silver); background: rgba(8, 8, 10, 0.6); }
   .ghost:hover { border-color: var(--silver); }
@@ -132,11 +133,9 @@
   .tb:hover { color: #fff; border-color: var(--line-strong); }
   #shareBtn { all: unset; position: absolute; cursor: pointer; font: 700 11px var(--f-ui); letter-spacing: 0.2em; color: #000;
     background: var(--red); padding: 10px 14px; box-shadow: 0 8px 24px -8px rgba(255, 42, 58, 0.8); }
-  #shareBtn:focus-visible, .linkbtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  #shareBtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .chase { margin: 0; font: 500 13px/1.45 var(--f-ui); color: #c4c7ce; }
   .chase b { color: #fff; font-weight: 600; }
-  .linkbtn { all: unset; cursor: pointer; justify-self: start; font: 600 11px var(--f-ui); letter-spacing: 0.2em; color: var(--red); padding: 4px 0; }
-  .linkbtn:hover { color: #fff; }
   #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 12px); opacity: 0; z-index: 20;
     font: 600 12px var(--f-ui); letter-spacing: 0.18em; color: #000; background: var(--silver); padding: 10px 16px; transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none; }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
@@ -180,6 +179,7 @@
       <button class="ghost" id="levelsBtn">NIVELES</button>
       <button class="ghost" id="rankBtn">RANKING</button>
       <button class="ghost" id="soundBtn">SONIDO</button>
+      <button class="ghost" id="shareMenu">COMPARTIR</button>
     </div>
     <p class="chase" id="chase" hidden></p>
     <div class="stats">
@@ -188,7 +188,6 @@
       <div><b id="stTests">0</b><span>TESTS</span></div>
       <div><b id="stRank">—</b><span>PUESTO</span></div>
     </div>
-    <button class="linkbtn" id="shareMenu" hidden>COMPARTIR MI PUNTAJE →</button>
     <p class="hint">ENTER PARA EMPEZAR · ESC VUELVE AL MENÚ</p>
   </div>
 </div>
@@ -228,7 +227,7 @@
       <button class="tb" id="pauseBtn">PAUSA</button>
       <button class="tb" id="soundTb">SONIDO</button>
     </div>
-    <button id="shareBtn" hidden>COMPARTIR PUNTAJE</button>
+    <button id="shareBtn" hidden>COMPARTIR</button>
   </div>
   <div id="pad">
     <div class="btn" data-k="left">⟲</div>
@@ -604,6 +603,7 @@ function renderRank() {
 function shareUrl() { return window.claude && window.claude.use ? ARTIFACT_URL : location.href.split('#')[0]; }
 function shareMessage() {
   const r = myRank();
+  if (totalPoints() <= 0) return `Probá ROADSTER: subí la rampa con succión, salí boca abajo y aterrizá con gas frío. ¿Llegás al ranking? ${shareUrl()}`;
   return `Hice ${totalPoints().toLocaleString('es-AR')} puntos en ROADSTER y superé ${levelsPassed()}/${LEVELS.length} niveles` +
          `${r ? ` (puesto #${r} del ranking)` : ''}. ¿Me superás? ${shareUrl()}`;
 }
@@ -758,7 +758,6 @@ function refreshMenu() {
     chase.innerHTML = ch;
     const slot = chase.querySelector('b:empty'); if (slot) slot.textContent = chaseName();
   }
-  $('shareMenu').hidden = totalPoints() <= 0;
   syncSoundLabels();
 }
 function renderLevels() {
@@ -838,7 +837,7 @@ function reset(next) {
   state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: lvl().gas,
             exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
             passed: false, onPad: false, miss: 0, slowUsed: false, slowLeft: 0, newBest: false,
-            endedAt: 0, path: [], land: null, near: false,
+            endedAt: 0, path: [], land: null,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
   particles = []; trail = []; flash = 0; camX = 0; shake = 0;
   placeOnTrack();
@@ -911,15 +910,13 @@ function stepAir(dt) {
   const pts = [[-23, 11], [23, 11], [-36, 0], [36, 0], [-12, -15], [12, -15]];
   const cs = Math.cos(c.th), sn = Math.sin(c.th);
   const low = Math.max(...pts.map(([lx, ly]) => c.y + lx * sn + ly * cs));
-  // last stretch before the floor plays at half speed
-  c.near = c.vy > 30 && FLOOR - low < 70;
   if (c.path.length === 0 || Math.hypot(c.x - c.path[c.path.length - 1][0], c.y - c.path[c.path.length - 1][1]) > 6) c.path.push([c.x, c.y]);
   if (low >= FLOOR) touchdown();
 }
 
 function touchdown() {
   const c = state, ang = Math.abs(norm(c.th)) * 180 / Math.PI;
-  c.slowLeft = 0; c.near = false; c.endedAt = performance.now();
+  c.slowLeft = 0; c.endedAt = performance.now();
   const vy = c.vy / 10, vx = Math.abs(c.vx) / 10, w = Math.abs(c.w);
   c.land = { ang, vy, vx, w };
   const r = [];
@@ -1326,6 +1323,7 @@ function panel(lines, y0) {
   ctx.fillStyle = RED; ctx.fillRect(x, y0, 44, 2);
   const fonts = { T: [`400 11.5px ${FD}`, 1.5], B: [`600 15px ${FU}`, 0.5], S: [`500 12px ${FU}`, 0.3], A: [`700 11px ${FU}`, 2] };
   lines.forEach(([t, kind, col], i) => txt(ctx, t, x + 16, y0 + 26 + i * lh, fonts[kind][0], col, 'left', fonts[kind][1]));
+  return y0 + h;
 }
 
 function banner(text, y, col) { txt(ctx, text, W / 2, y, `600 12px ${FU}`, col, 'center', 1.5); }
@@ -1349,29 +1347,28 @@ function drawOverlay() {
     }
   } else if (c.mode === 'landed' && !c.onPad) {
     const short = c.x > lvl().pad;   // the car flies left, so landing right of the pad means it fell short
-    panel([['FUERA DE ZONA', 'T', '#ffb347'],
+    placeShare(panel([['FUERA DE ZONA', 'T', '#ffb347'],
            ['El auto quedó entero.', 'S', '#e6e7ea'],
            [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m.`, 'S', '#e6e7ea'],
            [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', 'S', SUB],
-           [retry, 'A', RED]], 320);
+           [retry, 'A', RED]], 320));
   } else if (c.mode === 'landed') {
     const last = level === LEVELS.length - 1, r = myRank();
-    panel([['ATERRIZAJE PERFECTO', 'T', OK],
+    placeShare(panel([['ATERRIZAJE PERFECTO', 'T', OK],
            [`${c.score} PUNTOS${c.newBest ? '  ·  RÉCORD' : ''}`, 'B', '#fff'],
            [`Salida de rampa ${(c.exitSpeed / 10).toFixed(1)} m/s · gas ${c.gas.toFixed(0)}%`, 'S', SUB],
            [`Total ${totalPoints().toLocaleString('es-AR')} pts${r ? ` · puesto mundial #${r}` : ''}`, 'S', SUB],
            [last ? `Superaste los ${LEVELS.length} niveles.` : `Desbloqueaste el nivel ${level + 2}.`, 'S', OK],
-           [act('TOCÁ O ▲ PARA SEGUIR', '↑ O ESPACIO · SEGUIR'), 'A', RED]], 320);
-    placeShare(320 + 6 * 22 + 28);
+           [act('TOCÁ O ▲ PARA SEGUIR', '↑ O ESPACIO · SEGUIR'), 'A', RED]], 320));
   } else if (c.mode === 'crashed') {
     const m = c.land, row = (ok, label, v, lim) => [`${ok ? '✓' : '✕'}  ${label} ${v}  ·  máx ${lim}`, 'S', ok ? OK : '#ff6b77'];
-    panel([['IMPACTO · AUTO DESTRUIDO', 'T', '#ff4a58'],
+    placeShare(panel([['IMPACTO · AUTO DESTRUIDO', 'T', '#ff4a58'],
            row(m.ang <= 12, 'INCLINACIÓN', m.ang.toFixed(0) + '°', '12°'),
            row(m.vy <= 12, 'CAÍDA', m.vy.toFixed(1) + ' m/s', '12 m/s'),
            row(m.vx <= 13, 'DERIVA', m.vx.toFixed(1) + ' m/s', '13 m/s'),
            ...(m.w > 2 ? [row(false, 'GIRO', m.w.toFixed(1) + ' rad/s', '2 rad/s')] : []),
            [crashTip(m, c.msg), 'S', '#e6e7ea'],
-           [retry, 'A', RED]], 320);
+           [retry, 'A', RED]], 320));
   } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
     banner(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', 158, '#ff4a58');
   } else if (c.mode === 'air' && !c.armed && keys.up) {
@@ -1427,7 +1424,7 @@ function coachHint() {
   return null;
 }
 function coachBanner(text) {
-  const y = 222, pulse = 0.75 + 0.25 * Math.sin(performance.now() / 180);
+  const y = state.y < 330 ? 440 : 222, pulse = 0.75 + 0.25 * Math.sin(performance.now() / 180);
   ctx.font = `700 12px ${FU}`; ctx.letterSpacing = '1.5px';
   const w = Math.min(W - 24, ctx.measureText(text).width + 36); ctx.letterSpacing = '0px';
   ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(W / 2 - w / 2, y - 17, w, 34);
@@ -1470,7 +1467,7 @@ function draw() {
   drawHUD();
   shareWanted = false;
   drawOverlay();
-  $('shareBtn').hidden = !shareWanted || totalPoints() <= 0;
+  $('shareBtn').hidden = !shareWanted;
 }
 
 // ---------- splash & menu backdrop: the car flying over a dark floor ----------
@@ -1547,7 +1544,7 @@ function frame(t) {
   if (screen === 'game') {
     if (!paused) {
       if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
-      acc += real * (state.near ? 0.45 : 1);
+      acc += real;
     }
     while (acc >= DT) { step(DT); acc -= DT; }
     draw();
