@@ -84,18 +84,26 @@ const trackBand = offsetPath(14), trackSkirt = offsetPath(34),
 const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: 150 + Math.random() * 700, a: Math.random() * 0.5 + 0.1 }));
 
 // ---------- input ----------
-const keys = { up: false, down: false, left: false, right: false, space: false };
+const keys = { up: false, down: false, left: false, right: false };
 const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left',
-                 ArrowRight: 'right', KeyD: 'right', Space: 'space' };
+                 ArrowRight: 'right', KeyD: 'right' };
 addEventListener('keydown', e => {
   if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; e.preventDefault(); onInput(); }
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) toggleSuction(); }
   if (e.code === 'KeyR' || (e.code === 'Enter' && (state.mode === 'landed' || state.mode === 'crashed'))) reset(true);
 });
-addEventListener('keyup', e => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
-document.querySelectorAll('.btn').forEach(b => {
+addEventListener('keyup', e => {
+  if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false;
+  if (KEYMAP[e.code] === 'up') state.armed = true;   // main thruster needs a fresh press after leaving the ramp
+});
+const suctionBtn = document.querySelector('[data-k="space"]');
+function toggleSuction() { state.suction = !state.suction; syncSuctionBtn(); }
+function syncSuctionBtn() { suctionBtn.classList.toggle('on', state.suction); }
+suctionBtn.addEventListener('pointerdown', e => { e.preventDefault(); toggleSuction(); });
+document.querySelectorAll('.btn:not([data-k="space"])').forEach(b => {
   const k = b.dataset.k;
   const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); onInput(); };
-  const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); };
+  const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); if (k === 'up') state.armed = true; };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
   b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
 });
@@ -110,10 +118,11 @@ let state, particles, trail, flash;
 function reset(next) {
   if (next) { testNo++; save(); }
   state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: 100,
-            exitSpeed: null, msg: '', reasons: [], score: 0,
+            exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
   particles = []; trail = []; flash = 0;
   placeOnTrack();
+  syncSuctionBtn();
 }
 function onInput() { if (state.mode === 'ready' && keys.up) state.mode = 'ramp'; }
 
@@ -130,7 +139,7 @@ function leaveTrack(p, why) {
   c.vx = p.tx * c.v; c.vy = p.ty * c.v;
   c.w = -c.v * p.k;           // carry the turn rate of the curve
   c.exitSpeed = Math.abs(c.v);
-  c.mode = 'air'; c.msg = why || '';
+  c.mode = 'air'; c.msg = why || ''; c.armed = !keys.up;
 }
 
 // ---------- physics ----------
@@ -144,7 +153,7 @@ function stepRamp(dt) {
   if (c.s < 0) { c.s = 0; c.v = Math.max(0, c.v); }
   if (c.s >= P.length - 1) { leaveTrack(P[P.length - 1]); return; }
 
-  const sucking = keys.space && c.gas > 0;
+  const sucking = c.suction && c.gas > 0;
   if (sucking) { c.gas -= 4 * dt; c.use.space += dt; }
   if (keys.up) c.use.up += dt;
   if (keys.down) c.use.down += dt;
@@ -153,7 +162,8 @@ function stepRamp(dt) {
   // normal force: N = v²k − g·n + suction ; walls & ceiling need some grip
   const N = c.v * c.v * p.k - G * p.ny + (sucking ? SUCTION : 0);
   const need = p.ny > -0.5 ? 0.2 * G : 0;
-  if (N < need) leaveTrack(p, 'SIN ADHERENCIA');
+  c.slip = N < need ? c.slip + dt : 0;
+  if (c.slip > 0.35) leaveTrack(p, 'SIN ADHERENCIA');
 
   trail.push(tailPos()); if (trail.length > 30) trail.shift();
 }
@@ -162,7 +172,7 @@ function stepAir(dt) {
   const c = state;
   let ax = 0, ay = G, al = 0;
   const ux = Math.sin(c.th), uy = -Math.cos(c.th);   // car's "roof" direction
-  if (keys.up && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt; c.use.up += dt; emit('main'); }
+  if (keys.up && c.armed && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt; c.use.up += dt; emit('main'); }
   if (keys.left && c.gas > 0) { al -= SPIN; c.gas -= 10 * dt; c.use.left += dt; emit('ccw'); }
   if (keys.right && c.gas > 0) { al += SPIN; c.gas -= 10 * dt; c.use.right += dt; emit('cw'); }
   c.gas = Math.max(0, c.gas);
@@ -369,7 +379,7 @@ function drawHUD() {
     ? [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
        ['VELOCIDAD', `${(c.v / 10).toFixed(1)} m/s`, c.v / 480, '#ddd'],
        ['SALIDA IDEAL', '< 15 m/s', 0, dim],
-       ['SUCCIÓN', keys.space && c.gas > 0 ? 'ON' : 'OFF', keys.space ? 1 : 0, keys.space ? '#ff5a66' : dim]]
+       ['SUCCIÓN', c.suction && c.gas > 0 ? 'ON' : 'OFF', c.suction ? 1 : 0, c.suction ? '#ff5a66' : dim]]
     : [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
        ['ÁNGULO', `${ang.toFixed(0)}°`, 1 - ang / 180, ang <= 12 ? ok : bad],
        ['V. VERTICAL', `${vy.toFixed(1)} m/s`, 1 - Math.max(0, vy) / 40, vy <= 12 ? ok : bad],
@@ -384,11 +394,11 @@ function drawHUD() {
   // thruster usage (middle column)
   const use = [['▲', air ? 'PROPULSOR' : 'ACELERAR', 'up'], ['◀', 'GIRO IZQ', 'left'], ['▶', 'GIRO DER', 'right'], ['␣', 'SUCCIÓN', 'space']];
   use.forEach(([sym, label, k], i) => {
-    const y = 852 + i * 26, t = c.use[k];
-    ctx.fillStyle = keys[k] ? '#ff3a48' : '#333'; ctx.beginPath(); ctx.arc(204, y, 3.5, 0, 7); ctx.fill();
+    const y = 852 + i * 26, t = c.use[k], on = k === 'space' ? c.suction && c.mode === 'ramp' : keys[k];
+    ctx.fillStyle = on ? '#ff3a48' : '#333'; ctx.beginPath(); ctx.arc(204, y, 3.5, 0, 7); ctx.fill();
     ctx.fillStyle = dim; ctx.textAlign = 'left'; ctx.fillText(`${sym} ${label}`, 214, y);
     ctx.fillStyle = t > 0 ? '#ddd' : '#555'; ctx.textAlign = 'right'; ctx.fillText(`${t.toFixed(1)}s`, 336, y);
-    bar(214, y + 8, 122, t / 3, keys[k] ? '#ff5a66' : '#77777d');
+    bar(214, y + 8, 122, t / 3, on ? '#ff5a66' : '#77777d');
   });
 
   // attitude dial (right)
@@ -405,7 +415,7 @@ function drawHUD() {
   ctx.fillStyle = dim; ctx.textAlign = 'center'; ctx.fillText('ACTITUD', cx, cy + R + 12);
 
   ctx.fillStyle = '#5a5a60'; ctx.font = '500 8.5px Orbitron, monospace';
-  ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN', W / 2, 970);
+  ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN ON/OFF', W / 2, 970);
   ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO' : 'AIRE: ↑ PROPULSOR · ← → GIRO · R REINICIAR', W / 2, 986);
   ctx.textAlign = 'left';
 }
@@ -422,8 +432,8 @@ function drawOverlay() {
   const c = state, B = '700 13px Orbitron, monospace', S = '500 9.5px Orbitron, monospace';
   if (c.mode === 'ready') {
     panel([['MISIÓN', B, '#fff'],
-           ['1. Subí la rampa (↑). En pared y techo', S, '#bbb'],
-           ['   mantené la SUCCIÓN (espacio).', S, '#bbb'],
+           ['1. Subí la rampa (↑). La SUCCIÓN arranca', S, '#bbb'],
+           ['   prendida (espacio la prende/apaga).', S, '#bbb'],
            ['2. Salís boca abajo: girá con ← →', S, '#bbb'],
            ['3. Frená la caída con ↑ (empuja', S, '#bbb'],
            ['   hacia donde apunta el techo).', S, '#bbb'],
@@ -442,6 +452,12 @@ function drawOverlay() {
            ...c.reasons.map(r => ['· ' + r, S, '#ddd']),
            ...(c.msg ? [['· Se despegó: ' + c.msg, S, '#ddd']] : []),
            [isTouch ? 'TOCÁ PARA REINTENTAR' : 'R / ENTER: REINTENTAR', B, '#ff5a66']], 320);
+  } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
+    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
+    ctx.fillText(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', W / 2, 140); ctx.textAlign = 'left';
+  } else if (c.mode === 'air' && !c.armed && keys.up) {
+    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ddd'; ctx.textAlign = 'center';
+    ctx.fillText('SOLTÁ ↑ Y VOLVÉ A APRETAR PARA EL PROPULSOR', W / 2, 140); ctx.textAlign = 'left';
   } else if (c.mode === 'air' && c.msg) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
     ctx.fillText(c.msg, W / 2, 140); ctx.textAlign = 'left';

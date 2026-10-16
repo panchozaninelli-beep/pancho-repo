@@ -8,7 +8,7 @@ Juego simple en un solo archivo (`index.html`, sin dependencias). Abrilo en el n
 |-------|------------------|------------------------------------------------|
 | Rampa | ↑ / W            | Acelerar                                       |
 | Rampa | ↓ / S            | Frenar                                         |
-| Rampa | Espacio          | Succión (necesaria en pared y techo, gasta gas)|
+| Rampa | Espacio          | Prende/apaga la succión (arranca prendida; necesaria en pared y techo, gasta gas)|
 | Aire  | ↑ / W            | Propulsor principal (empuja hacia el techo del auto) |
 | Aire  | ← → / A D        | Propulsores de giro                            |
 | —     | R / Enter        | Reiniciar / siguiente test                     |
