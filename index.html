@@ -31,6 +31,7 @@
 // ---------- setup ----------
 const W = 460, H = 1000, FLOOR = 700, G = 160;      // world units: px, px/s, 10 px = 1 m
 const THRUST = 330, SPIN = 7, SUCTION = 1.7 * G;
+const LEFT = -1500;                                   // the world extends left of the screen; the camera follows the car
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const isTouch = matchMedia('(pointer:coarse)').matches;
 if (isTouch) document.body.classList.add('touch');
@@ -81,7 +82,8 @@ function offsetPath(o) {
 const trackBand = offsetPath(14), trackSkirt = offsetPath(34),
       edgeIn = offsetPath(1.5), edgeOut = offsetPath(26.5), centerLine = offsetPath(14);
 
-const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: 150 + Math.random() * 700, a: Math.random() * 0.5 + 0.1 }));
+const stars = Array.from({ length: 300 }, () => ({ x: LEFT - 200 + Math.random() * (W - LEFT + 200), y: 150 + Math.random() * 700, a: Math.random() * 0.5 + 0.1 }));
+let camX = 0;
 
 // ---------- input ----------
 const keys = { up: false, down: false, left: false, right: false };
@@ -120,7 +122,7 @@ function reset(next) {
   state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: 100,
             exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
-  particles = []; trail = []; flash = 0;
+  particles = []; trail = []; flash = 0; camX = 0;
   placeOnTrack();
   syncSuctionBtn();
 }
@@ -179,7 +181,7 @@ function stepAir(dt) {
   c.w += al * dt; c.w *= 1 - 0.35 * dt;
   c.vx += ax * dt; c.vy += ay * dt; c.vx *= 1 - 0.04 * dt;
   c.x += c.vx * dt; c.y += c.vy * dt; c.th += c.w * dt;
-  if (c.x < 40) { c.x = 40; c.vx = Math.abs(c.vx) * 0.4; }
+  if (c.x < LEFT + 40) { c.x = LEFT + 40; c.vx = Math.abs(c.vx) * 0.4; }
   if (c.x > W - 40) { c.x = W - 40; c.vx = -Math.abs(c.vx) * 0.4; }
   trail.push(tailPos()); if (trail.length > 30) trail.shift();
 
@@ -247,6 +249,9 @@ function step(dt) {
   }
   particles = particles.filter(p => p.life > 0);
   flash = Math.max(0, flash - dt * 2);
+  // keep the car at least 150px from the left edge of the screen
+  const target = Math.max(LEFT, Math.min(0, c.x - 150));
+  camX += (target - camX) * Math.min(1, dt * 5);
 }
 
 // ---------- drawing ----------
@@ -257,11 +262,10 @@ function spaced(text, x, y, sp) {
 }
 
 function drawBackground() {
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   const g = ctx.createRadialGradient(270, 560, 10, 270, 560, 330);
   g.addColorStop(0, 'rgba(60,60,64,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 150, W, 700);
-  ctx.fillStyle = '#070708'; ctx.fillRect(0, 460, W, FLOOR - 460);  // far horizon band
+  ctx.fillStyle = '#070708'; ctx.fillRect(LEFT - 400, 460, W - LEFT + 400, FLOOR - 460);  // far horizon band
   for (const s of stars) { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fillRect(s.x, s.y, 1.2, 1.2); }
 }
 
@@ -338,14 +342,30 @@ function drawWorld(alpha) {
 
 function drawReflection() {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, FLOOR + 2, W, 150); ctx.clip();
+  ctx.beginPath(); ctx.rect(LEFT - 400, FLOOR + 2, W - LEFT + 400, 150); ctx.clip();
   ctx.translate(0, 2 * FLOOR); ctx.scale(1, -1); ctx.globalAlpha = 0.16;
   drawWorld(1);
   ctx.restore();
   const g = ctx.createLinearGradient(0, FLOOR, 0, FLOOR + 150);
   g.addColorStop(0, 'rgba(0,0,0,0.2)'); g.addColorStop(1, 'rgba(0,0,0,1)');
-  ctx.fillStyle = g; ctx.fillRect(0, FLOOR + 2, W, 150);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, FLOOR, W, 1);
+  ctx.fillStyle = g; ctx.fillRect(LEFT - 400, FLOOR + 2, W - LEFT + 400, 150);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(LEFT - 400, FLOOR, W - LEFT + 400, 1);
+}
+
+function drawGround() {
+  // distance marks every 10 m from the ramp exit, plus the far barrier
+  ctx.font = '500 8px Orbitron, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let m = 10; 190 - m * 10 > LEFT + 20; m += 10) {
+    const x = 190 - m * 10;
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, FLOOR, 1, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillText(`${m} m`, x, FLOOR + 9);
+  }
+  ctx.strokeStyle = 'rgba(255,90,102,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let y = 300; y < FLOOR; y += 40) { ctx.moveTo(LEFT, y); ctx.lineTo(LEFT + 14, y + 20); ctx.moveTo(LEFT + 14, y + 20); ctx.lineTo(LEFT, y + 40); }
+  ctx.moveTo(LEFT, 300); ctx.lineTo(LEFT, FLOOR); ctx.moveTo(LEFT + 14, 300); ctx.lineTo(LEFT + 14, FLOOR);
+  ctx.stroke();
+  ctx.textAlign = 'left';
 }
 
 function drawHeader() {
@@ -465,10 +485,19 @@ function drawOverlay() {
 }
 
 function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.translate(-camX, 0);
   drawBackground();
   drawScaffold();
   drawReflection();
+  drawGround();
   drawWorld(1);
+  ctx.restore();
+  // arrow toward the ramp when it is off screen
+  if (camX < -W) {
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '500 9px Orbitron, monospace'; ctx.textAlign = 'right';
+    ctx.fillText(`RAMPA ${Math.round((190 - state.x) / 10)} m ▶`, W - 12, FLOOR - 14); ctx.textAlign = 'left';
+  }
   if (flash) { ctx.fillStyle = `rgba(255,40,50,${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
   drawHeader();
   drawHUD();
