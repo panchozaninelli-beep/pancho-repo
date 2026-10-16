@@ -2,23 +2,188 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Test 47</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Michroma&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;height:100%;background:#000;color:#ddd;font-family:Orbitron,monospace;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-  #wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  canvas{display:block;background:#000}
-  #pad{display:none;gap:8px;padding:8px 0 14px}
-  body.touch #pad{display:flex}
-  .btn{width:60px;height:56px;border:1px solid #444;border-radius:12px;background:#111;color:#eee;font:700 18px Orbitron,monospace;display:flex;align-items:center;justify-content:center}
-  .btn.on{background:#3a0d10;border-color:#ff3b4a;color:#fff}
-  .btn.wide{width:84px;font-size:10px}
+  /* layout: black void, animated flight backdrop; menu as one column (left on wide screens, bottom on phones); game canvas centred at phone aspect */
+  :root {
+    --void: #000; --panel: rgba(6, 6, 8, 0.86);
+    --line: rgba(201, 204, 212, 0.14); --line-strong: rgba(201, 204, 212, 0.3);
+    --silver: #d6d8de; --silver-dim: #81848d; --silver-faint: #4b4e55;
+    --red: #ff2a3a; --red-deep: #5c0710; --ok: #5be38a;
+    --f-display: Michroma, "Chakra Petch", sans-serif;
+    --f-ui: "Chakra Petch", "Arial Narrow", sans-serif;
+    color-scheme: dark;
+  }
+  html, body { margin: 0; height: 100%; background: var(--void); color: var(--silver); font-family: var(--f-ui);
+    overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  button { font-family: inherit; }
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .screen { position: fixed; inset: 0; display: flex; transition: opacity 0.45s ease;
+    padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px)); }
+  .screen.off { opacity: 0; pointer-events: none; }
+
+  /* splash */
+  #splash { align-items: flex-end; justify-content: center; }
+  .load { width: min(320px, 100%); margin-bottom: max(11vh, 56px); display: grid; gap: 12px; text-align: center; }
+  .load .mark { font: 400 13px var(--f-display); letter-spacing: 0.5em; padding-left: 0.5em; color: var(--silver); }
+  .load .mark b, .title .t2 { color: var(--red); font-weight: 400; }
+  .bar { height: 2px; background: #141418; position: relative; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--red-deep), var(--red)); box-shadow: 0 0 12px var(--red); }
+  .status { display: flex; justify-content: space-between; font: 500 10px var(--f-ui); letter-spacing: 0.22em; color: var(--silver-dim); font-variant-numeric: tabular-nums; }
+  .skip { font: 500 10px var(--f-ui); letter-spacing: 0.22em; color: var(--silver-faint); min-height: 1em; }
+
+  /* menu */
+  #menu { align-items: flex-end; justify-content: center;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.92) 100%); }
+  .menu { width: min(440px, 100%); display: flex; flex-direction: column; gap: 16px; padding-block: 28px; }
+  @media (min-width: 900px) and (min-height: 560px) {
+    #menu { align-items: center; justify-content: flex-start; padding-left: max(8vw, 16px);
+      background: linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 38%, rgba(0,0,0,0) 62%); }
+  }
+  .eyebrow { margin: 0; font: 500 10px var(--f-ui); letter-spacing: 0.32em; color: var(--silver-dim); display: flex; align-items: center; gap: 10px; }
+  .eyebrow::before { content: ""; width: 18px; height: 2px; background: var(--red); flex: none; }
+  .title { margin: 0; font: 400 clamp(54px, 16vw, 92px) / 0.92 var(--f-display); letter-spacing: -0.02em; display: flex; gap: 0.14em; align-items: baseline; text-wrap: balance; }
+  .title .t1 { background: linear-gradient(180deg, #fff 0%, #cfd2d8 48%, #6b6e77 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .title .t2 { text-shadow: 0 0 28px rgba(255, 42, 58, 0.45); }
+  .tag { margin: 0; font: 400 15px/1.5 var(--f-ui); color: #a9acb4; max-width: 36ch; }
+  .field { display: grid; gap: 6px; }
+  .field span { font: 500 10px var(--f-ui); letter-spacing: 0.28em; color: var(--silver-dim); }
+  .field input { all: unset; box-sizing: border-box; width: 100%; font: 600 17px var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; color: #fff;
+    padding: 12px 14px; border: 1px solid var(--line-strong); background: rgba(8, 8, 10, 0.75); user-select: text; -webkit-user-select: text; }
+  .field input::placeholder { color: var(--silver-faint); }
+  .field input:focus { border-color: var(--red); }
+  .primary { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 20px; background: var(--red); color: #000; font: 400 18px var(--f-display); letter-spacing: 0.3em;
+    box-shadow: 0 14px 40px -12px rgba(255, 42, 58, 0.75); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .primary small { font: 700 11px var(--f-ui); letter-spacing: 0.2em; color: rgba(0, 0, 0, 0.62); }
+  .primary:hover { transform: translateY(-1px); box-shadow: 0 18px 46px -12px rgba(255, 42, 58, 0.9); }
+  .primary:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .ghost { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 12px 6px; border: 1px solid var(--line-strong);
+    font: 600 11px var(--f-ui); letter-spacing: 0.2em; color: var(--silver); background: rgba(8, 8, 10, 0.6); }
+  .ghost:hover { border-color: var(--silver); }
+  .ghost:focus-visible, .lv:focus-visible, .close:focus-visible, .tb:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .stats div { display: grid; gap: 3px; min-width: 0; }
+  .stats b { font: 600 20px var(--f-ui); color: #fff; font-variant-numeric: tabular-nums; }
+  .stats span { font: 500 9px var(--f-ui); letter-spacing: 0.24em; color: var(--silver-dim); }
+  .hint { margin: 0; font: 500 10px var(--f-ui); letter-spacing: 0.24em; color: var(--silver-faint); }
+  body.touch .hint { display: none; }
+
+  /* sheets */
+  .sheet { position: fixed; inset: 0; z-index: 5; background: rgba(0, 0, 0, 0.97); display: flex; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px)); }
+  .sheet-in { width: min(480px, 100%); max-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; padding-block: 24px; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .sheet-head h2 { margin: 0; font: 400 17px var(--f-display); letter-spacing: 0.16em; color: #fff; }
+  .close { all: unset; cursor: pointer; font: 600 11px var(--f-ui); letter-spacing: 0.2em; color: var(--silver-dim); padding: 8px 4px; }
+  .close:hover { color: #fff; }
+  .levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; overflow: auto; }
+  .lv { all: unset; box-sizing: border-box; cursor: pointer; border: 1px solid var(--line-strong); padding: 12px; display: grid; gap: 6px; background: rgba(10, 10, 12, 0.85); }
+  .lv:hover { border-color: var(--silver); }
+  .lv .n { font: 400 22px var(--f-display); color: #fff; }
+  .lv .m { font: 500 11px var(--f-ui); letter-spacing: 0.1em; color: var(--silver-dim); }
+  .lv .s { font: 600 13px var(--f-ui); letter-spacing: 0.08em; color: var(--silver); font-variant-numeric: tabular-nums; }
+  .lv .s.ok { color: var(--ok); }
+  .lv.locked { opacity: 0.32; cursor: not-allowed; }
+  .lv.cur { border-color: var(--red); }
+  .rank-meta { margin: 0; font: 500 11px/1.5 var(--f-ui); letter-spacing: 0.12em; color: var(--silver-dim); }
+  .rank-note { margin: 0; font: 400 13px/1.5 var(--f-ui); color: #a9acb4; border-left: 2px solid var(--red); padding-left: 10px; }
+  .rank-cols, .rank li { display: grid; grid-template-columns: 46px minmax(0, 1fr) 54px 72px; align-items: center; gap: 8px; }
+  .rank-cols { font: 500 9px var(--f-ui); letter-spacing: 0.24em; color: var(--silver-faint); padding: 0 6px; }
+  .rank-cols span:last-child, .rank .pts { text-align: right; }
+  .rank { list-style: none; margin: 0; padding: 0; overflow: auto; border-top: 1px solid var(--line); min-height: 0; }
+  .rank li { padding: 11px 6px; border-bottom: 1px solid var(--line); font: 500 15px var(--f-ui); font-variant-numeric: tabular-nums; }
+  .rank .pos { font: 400 13px var(--f-display); color: var(--silver-dim); }
+  .rank li:nth-child(1) .pos { color: var(--red); }
+  .rank li:nth-child(2) .pos, .rank li:nth-child(3) .pos { color: #fff; }
+  .rank .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; letter-spacing: 0.06em; }
+  .rank .lvl { color: var(--silver-dim); font-size: 13px; }
+  .rank .pts { color: #fff; font-weight: 600; }
+  .rank li.me { background: linear-gradient(90deg, rgba(255, 42, 58, 0.16), rgba(255, 42, 58, 0)); }
+  .rank .empty { display: block; padding: 22px 6px; color: var(--silver-dim); font-size: 13px; line-height: 1.5; }
+
+  /* game */
+  #game { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+  #stage { position: relative; }
+  #c { display: block; background: #000; }
+  .tb { all: unset; position: absolute; top: 8px; cursor: pointer; font: 600 10px var(--f-ui); letter-spacing: 0.22em; color: var(--silver-dim);
+    padding: 7px 10px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.55); }
+  .tb:hover { color: #fff; border-color: var(--line-strong); }
+  #menuBtn { left: 8px; } #soundTb { right: 8px; }
+  #pad { display: none; gap: 8px; padding: 10px 0 12px; }
+  body.touch #pad { display: flex; }
+  .btn { width: 62px; height: 58px; box-sizing: border-box; border: 1px solid #2a2b30; border-radius: 10px; background: linear-gradient(180deg, #121216, #060608);
+    color: var(--silver); font: 600 20px var(--f-ui); display: flex; align-items: center; justify-content: center; }
+  .btn.on { border-color: var(--red); color: #fff; background: linear-gradient(180deg, #2a0509, #110204); box-shadow: 0 0 16px rgba(255, 42, 58, 0.45); }
+  .btn.wide { width: 88px; font-size: 11px; letter-spacing: 0.14em; }
+  @media (prefers-reduced-motion: reduce) { .screen { transition: none; } .primary { transition: none; } }
 </style>
 </head>
 <body>
-<div id="wrap">
-  <canvas id="c"></canvas>
+<canvas id="bg"></canvas>
+
+<div id="splash" class="screen">
+  <div class="load">
+    <div class="mark">TEST <b>47</b></div>
+    <div class="bar"><i id="loadBar"></i></div>
+    <div class="status"><span id="loadText">CARGANDO GAS FRÍO</span><span id="loadPct">0%</span></div>
+    <div class="skip" id="skipHint"></div>
+  </div>
+</div>
+
+<div id="menu" class="screen off">
+  <div class="menu">
+    <p class="eyebrow">SUCCIÓN MULTIMODO · GAS FRÍO</p>
+    <h1 class="title"><span class="t1">TEST</span><span class="t2">47</span></h1>
+    <p class="tag">Subí la rampa con succión, salí boca abajo y aterrizá con las cuatro ruedas usando gas frío.</p>
+    <label class="field"><span>PILOTO</span><input id="pilot" maxlength="14" autocomplete="off" spellcheck="false" placeholder="TU NOMBRE"></label>
+    <button class="primary" id="startBtn"><span id="startLabel">START</span><small id="startSub"></small></button>
+    <div class="row">
+      <button class="ghost" id="levelsBtn">NIVELES</button>
+      <button class="ghost" id="rankBtn">RANKING</button>
+      <button class="ghost" id="soundBtn">SONIDO</button>
+    </div>
+    <div class="stats">
+      <div><b id="stTotal">0</b><span>PUNTOS</span></div>
+      <div><b id="stLevel">1/7</b><span>NIVEL</span></div>
+      <div><b id="stTests">0</b><span>TESTS</span></div>
+      <div><b id="stRank">—</b><span>PUESTO</span></div>
+    </div>
+    <p class="hint">ENTER PARA EMPEZAR · ESC VUELVE AL MENÚ</p>
+  </div>
+</div>
+
+<div id="levelsSheet" class="sheet" hidden>
+  <div class="sheet-in">
+    <div class="sheet-head"><h2>NIVELES</h2><button class="close" data-close>CERRAR ✕</button></div>
+    <div class="levels" id="levelGrid"></div>
+  </div>
+</div>
+
+<div id="rankSheet" class="sheet" hidden>
+  <div class="sheet-in">
+    <div class="sheet-head"><h2>RANKING</h2><button class="close" data-close>CERRAR ✕</button></div>
+    <p class="rank-meta" id="rankMeta">CARGANDO…</p>
+    <p class="rank-note" id="rankNote" hidden></p>
+    <div class="rank-cols"><span>#</span><span>PILOTO</span><span>NIVEL</span><span>PUNTOS</span></div>
+    <ol class="rank" id="rankList"></ol>
+  </div>
+</div>
+
+<div id="game" hidden>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <button class="tb" id="menuBtn">MENÚ</button>
+    <button class="tb" id="soundTb">SONIDO</button>
+  </div>
   <div id="pad">
     <div class="btn" data-k="left">⟲</div>
     <div class="btn" data-k="down">▼</div>
@@ -27,22 +192,36 @@
     <div class="btn wide" data-k="space">SUCCIÓN</div>
   </div>
 </div>
+
 <script>
 // ---------- setup ----------
 const W = 460, H = 1000, FLOOR = 700, G = 160;      // world units: px, px/s, 10 px = 1 m
 const THRUST = 330, SPIN = 7, SUCTION = 1.7 * G;
 const LEFT = -1500;                                   // the world extends left of the screen; the camera follows the car
-const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const FD = 'Michroma, "Chakra Petch", sans-serif', FU = '"Chakra Petch", "Arial Narrow", sans-serif';
+const RED = '#ff2a3a', OK = '#5be38a', SILVER = '#d6d8de', DIM = '#81848d', FAINT = '#4b4e55';
+const $ = id => document.getElementById(id);
+const cv = $('c'), ctx = cv.getContext('2d');
+const bg = $('bg'), bctx = bg.getContext('2d');
 const isTouch = matchMedia('(pointer:coarse)').matches;
 if (isTouch) document.body.classList.add('touch');
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
 
 function resize() {
-  const availH = innerHeight - (isTouch ? 80 : 0);
-  const s = Math.min(innerWidth / W, availH / H);
   const dpr = devicePixelRatio || 1;
+  const gs = getComputedStyle($('game'));
+  const availH = innerHeight - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - (isTouch ? 82 : 0);
+  const availW = innerWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight);
+  const s = Math.min(availW / W, availH / H);
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
+  $('stage').style.width = W * s + 'px';
   cv.width = Math.round(W * s * dpr); cv.height = Math.round(H * s * dpr);
   ctx.setTransform(s * dpr, 0, 0, s * dpr, 0, 0);
+  bg.width = Math.round(innerWidth * dpr); bg.height = Math.round(innerHeight * dpr);
+  bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 addEventListener('resize', resize); resize();
 
@@ -100,6 +279,7 @@ const EXIT_X = 190;
 const EASY_LEVELS = 3, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-3 get one 5 s slow-motion assist per attempt
 let level = 0, unlocked = 0;
 const lvl = () => LEVELS[level];
+const padDist = L => Math.round((EXIT_X - L.pad) / 10);
 const windStreaks = Array.from({ length: 28 }, () => ({ x: Math.random() * W, y: 160 + Math.random() * 520, len: 10 + Math.random() * 24 }));
 
 // ---------- sound (Web Audio, synthesized) ----------
@@ -129,12 +309,16 @@ function ensureAudio() {
   snd = { master, noiseBuf, main: hiss(900, 0.8), rcs: hiss(3800, 1.5), motor, mg, hg };
 }
 function setMuted(m) {
-  muted = m; save();
+  muted = m; save(); syncSoundLabels();
   if (m) { if (AC) AC.suspend(); } else ensureAudio();
+}
+function syncSoundLabels() {
+  $('soundBtn').textContent = muted ? 'SONIDO OFF' : 'SONIDO ON';
+  $('soundTb').textContent = muted ? 'SONIDO OFF' : 'SONIDO ON';
 }
 function updateAudio() {
   if (!snd || muted) return;
-  const c = state, t = AC.currentTime, air = c.mode === 'air', hasGas = c.gas > 0, ramp = c.mode === 'ramp';
+  const c = state, t = AC.currentTime, inGame = screen === 'game', air = inGame && c.mode === 'air', hasGas = c.gas > 0, ramp = inGame && c.mode === 'ramp';
   const set = (param, v) => param.setTargetAtTime(v, t, 0.03);
   set(snd.main.gain, air && keys.up && c.armed && hasGas ? 0.35 : 0);
   set(snd.rcs.gain, air && (keys.left || keys.right) && hasGas ? 0.18 : 0);
@@ -163,14 +347,118 @@ function sfx(kind) {
   if (kind === 'win') { tone(660, 660, 0.18, 0.18, 'triangle', 0.15); tone(990, 990, 0.35, 0.18, 'triangle', 0.32); }
   if (kind === 'slip') tone(880, 440, 0.15, 0.12, 'square');
   if (kind === 'slow') tone(700, 180, 0.6, 0.2, 'triangle');
+  if (kind === 'ui') tone(1200, 900, 0.08, 0.08, 'triangle');
+}
+
+// ---------- persistence ----------
+let testNo = 1, best = 0, bests = {}, pilotName = '';
+testNo = +store.get('t47_test') || 1; best = +store.get('t47_best') || 0;
+unlocked = Math.min(LEVELS.length - 1, +store.get('t47_unlocked') || 0);
+level = Math.min(unlocked, +store.get('t47_level') || 0);
+muted = store.get('t47_mute') === '1';
+try { bests = JSON.parse(store.get('t47_bests') || '{}') || {}; } catch (e) { bests = {}; }
+pilotName = store.get('t47_name') || '';
+function save() {
+  store.set('t47_test', testNo); store.set('t47_best', best);
+  store.set('t47_level', level); store.set('t47_unlocked', unlocked);
+  store.set('t47_mute', muted ? '1' : '0'); store.set('t47_bests', JSON.stringify(bests));
+  store.set('t47_name', pilotName);
+}
+const totalPoints = () => Object.values(bests).reduce((a, b) => a + b, 0);
+const levelsPassed = () => Object.keys(bests).length;
+
+// ---------- ranking (shared db when the page runs as a claude.ai artifact) ----------
+const rank = { db: null, uid: null, rows: [], live: false, readOnly: false, lastSent: '' };
+let writing = Promise.resolve();
+const cleanName = s => String(s || '').toUpperCase().replace(/[^A-Z0-9ÁÉÍÓÚÜÑ _.\-]/g, '').trim().slice(0, 14);
+async function initRanking() {
+  const use = window.claude && window.claude.use;
+  if (!use) { renderRank(); refreshMenu(); return; }
+  try {
+    const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+    if (!db) { renderRank(); refreshMenu(); return; }
+    rank.db = db;
+    rank.uid = user ? await user.id() : null;
+    if (rank.uid) {
+      const mine = await db.doc('scores/' + rank.uid).get().catch(() => null);
+      if (mine && mine.exists) {
+        const d = mine.data();
+        for (const [k, v] of Object.entries(d.bests || {})) if (+v > (bests[k] || 0)) bests[k] = +v;
+        if (!pilotName && d.name) { pilotName = cleanName(d.name); $('pilot').value = pilotName; }
+        unlocked = Math.max(unlocked, Math.min(LEVELS.length - 1, levelsPassed()));
+        save();
+      }
+    } else rank.readOnly = true;
+    db.collection('scores').orderBy('total', 'desc').limit(100).onSnapshot(snap => {
+      rank.rows = snap.docs.map(d => ({ id: d.id, ...d.data() })); rank.live = true;
+      renderRank(); refreshMenu();
+    }, () => { rank.live = false; renderRank(); });
+    submitScore();
+  } catch (e) { renderRank(); }
+  refreshMenu();
+}
+function submitScore() {
+  if (!rank.db || !rank.uid || rank.readOnly || totalPoints() <= 0) return;
+  const body = { name: pilotName || 'PILOTO', total: totalPoints(), passed: levelsPassed(), bests: { ...bests } };
+  const key = JSON.stringify(body);
+  if (key === rank.lastSent) return;
+  rank.lastSent = key;
+  writing = writing
+    .then(() => rank.db.doc('scores/' + rank.uid).set({ ...body, at: Date.now() }))
+    .catch(e => {
+      rank.lastSent = '';
+      if (!e || e.code !== 'unavailable') { rank.readOnly = true; renderRank(); }
+    });
+}
+function myRank() {
+  if (!rank.live || !rank.uid) return null;
+  const i = rank.rows.findIndex(r => r.id === rank.uid);
+  return i < 0 ? null : i + 1;
+}
+function renderRank() {
+  const list = $('rankList'), meta = $('rankMeta'), note = $('rankNote');
+  list.textContent = '';
+  const row = (pos, name, passed, pts, me) => {
+    const li = document.createElement('li'); if (me) li.className = 'me';
+    for (const [cls, v] of [['pos', pos], ['name', name], ['lvl', passed], ['pts', pts]]) {
+      const s = document.createElement('span'); s.className = cls; s.textContent = v; li.appendChild(s);
+    }
+    list.appendChild(li);
+  };
+  note.hidden = true;
+  if (rank.live) {
+    meta.textContent = `TOP MUNDIAL · ${rank.rows.length} ${rank.rows.length === 1 ? 'PILOTO' : 'PILOTOS'} · SUMA DEL MEJOR PUNTAJE DE CADA NIVEL`;
+    rank.rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), cleanName(r.name) || 'PILOTO', `${r.passed || 0}/7`, (r.total || 0).toLocaleString('es-AR'), r.id === rank.uid));
+    if (!rank.rows.length) {
+      const li = document.createElement('li'); li.className = 'empty';
+      li.textContent = 'Todavía no hay pilotos. Superá el nivel 1 y quedás primero.'; list.appendChild(li);
+    } else if (!myRank() && totalPoints() > 0) {
+      row('—', pilotName || 'VOS', `${levelsPassed()}/7`, totalPoints().toLocaleString('es-AR'), true);
+    }
+    if (rank.readOnly) {
+      note.hidden = false;
+      note.textContent = 'Con tu acceso podés ver el ranking pero no guardar puntajes. Pedile al dueño del juego que te invite como colaborador.';
+    }
+  } else {
+    meta.textContent = rank.db ? 'CONECTANDO CON EL RANKING…' : 'RANKING LOCAL · ESTE DISPOSITIVO';
+    if (!rank.db) {
+      note.hidden = false;
+      note.textContent = 'El ranking mundial funciona cuando abrís el juego desde su link publicado. Acá se muestra tu puntaje.';
+    }
+    if (totalPoints() > 0) row('01', pilotName || 'VOS', `${levelsPassed()}/7`, totalPoints().toLocaleString('es-AR'), true);
+    else { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Superá un nivel para sumar puntos.'; list.appendChild(li); }
+  }
 }
 
 // ---------- input ----------
 const keys = { up: false, down: false, left: false, right: false };
 const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left',
                  ArrowRight: 'right', KeyD: 'right' };
+let screen = 'splash';
 addEventListener('keydown', e => {
   ensureAudio();
+  if (screen !== 'game') { menuKey(e); return; }
+  if (e.code === 'Escape') { goMenu(); return; }
   if (e.code === 'KeyM') setMuted(!muted);
   const n = /^Digit([1-9])$/.exec(e.code);
   if (n && +n[1] - 1 <= unlocked && state.mode !== 'ramp' && state.mode !== 'air') { level = +n[1] - 1; save(); reset(false); }
@@ -206,29 +494,119 @@ document.querySelectorAll('.btn:not([data-k="space"])').forEach(b => {
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
   b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
 });
-cv.addEventListener('pointerdown', e => {
-  ensureAudio();
-  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
-  if (x > W - 110 && y < 44) { setMuted(!muted); return; }
-  if (state.mode === 'landed' || state.mode === 'crashed') reset(true);
+cv.addEventListener('pointerdown', () => { ensureAudio(); if (state.mode === 'landed' || state.mode === 'crashed') reset(true); });
+
+// ---------- screens ----------
+const firstTime = () => store.get('t47_played') !== '1';
+function openSheet(id) { $(id).hidden = false; const f = $(id).querySelector('.close'); if (f) f.focus({ preventScroll: true }); }
+function closeSheets() { for (const s of document.querySelectorAll('.sheet')) s.hidden = true; }
+const sheetOpen = () => [...document.querySelectorAll('.sheet')].some(s => !s.hidden);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { closeSheets(); $('startBtn').focus({ preventScroll: true }); }));
+document.querySelectorAll('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeSheets(); }));
+
+function menuKey(e) {
+  if (screen === 'splash') { if (splash.ready) enterMenu(); return; }
+  if (e.code === 'Escape') { closeSheets(); return; }
+  if (sheetOpen()) return;
+  const inInput = e.target === $('pilot');
+  if (e.code === 'Enter' || (e.code === 'Space' && !inInput)) { e.preventDefault(); startGame(); }
+}
+function enterMenu() {
+  if (screen !== 'splash') return;
+  screen = 'menu'; store.set('t47_seen', '1');
+  $('splash').classList.add('off');
+  $('menu').classList.remove('off');
+  refreshMenu();
+  if (!isTouch) $('startBtn').focus({ preventScroll: true });
+}
+function goMenu() {
+  for (const k in keys) keys[k] = false;
+  document.querySelectorAll('.btn.on').forEach(b => b.classList.remove('on'));
+  screen = 'menu';
+  $('game').hidden = true;
+  $('menu').classList.remove('off');
+  refreshMenu();
+  if (!isTouch) $('startBtn').focus({ preventScroll: true });
+}
+function startGame(lv) {
+  if (lv != null) { level = lv; }
+  const name = cleanName($('pilot').value) || pilotName || 'PILOTO ' + (100 + Math.floor(Math.random() * 900));
+  $('pilot').value = name;
+  if (name !== pilotName) { pilotName = name; save(); submitScore(); }
+  store.set('t47_played', '1');
+  closeSheets();
+  screen = 'game';
+  $('menu').classList.add('off');
+  $('game').hidden = false;
+  resize(); reset(false); ensureAudio(); sfx('ui');
+  document.activeElement && document.activeElement.blur();
+}
+function refreshMenu() {
+  const first = firstTime();
+  $('startLabel').textContent = first ? 'START' : 'CONTINUAR';
+  $('startSub').textContent = first ? '' : `NIVEL ${level + 1}`;
+  $('stTotal').textContent = totalPoints().toLocaleString('es-AR');
+  $('stLevel').textContent = `${unlocked + 1}/${LEVELS.length}`;
+  $('stTests').textContent = String(Math.max(0, testNo - 1));
+  const r = myRank();
+  $('stRank').textContent = r ? '#' + r : '—';
+  if (document.activeElement !== $('pilot')) $('pilot').value = pilotName;
+  syncSoundLabels();
+}
+function renderLevels() {
+  const grid = $('levelGrid'); grid.textContent = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    const locked = i > unlocked;
+    b.className = 'lv' + (locked ? ' locked' : '') + (i === level ? ' cur' : '');
+    b.disabled = locked;
+    const w = L.wind / 10;
+    const parts = [
+      ['n', String(i + 1).padStart(2, '0')],
+      ['m', `ZONA ${padDist(L)} m · GAS ${L.gas}%`],
+      ['m', (w ? `VIENTO ${w > 0 ? '→' : '←'} ${Math.abs(w).toFixed(1)}` : 'SIN VIENTO') + (i < EASY_LEVELS ? ' · AYUDA' : '')],
+      ['s' + (bests[i] ? ' ok' : ''), locked ? 'BLOQUEADO' : bests[i] ? `MEJOR ${bests[i]}` : 'SIN SUPERAR'],
+    ];
+    for (const [cls, t] of parts) { const s = document.createElement('span'); s.className = cls; s.textContent = t; b.appendChild(s); }
+    if (!locked) b.addEventListener('click', () => { save(); startGame(i); });
+    grid.appendChild(b);
+  });
+}
+$('startBtn').addEventListener('click', () => startGame());
+$('levelsBtn').addEventListener('click', () => { renderLevels(); openSheet('levelsSheet'); });
+$('rankBtn').addEventListener('click', () => { renderRank(); openSheet('rankSheet'); });
+$('soundBtn').addEventListener('click', () => { setMuted(!muted); ensureAudio(); });
+$('soundTb').addEventListener('click', e => { e.stopPropagation(); setMuted(!muted); ensureAudio(); });
+$('menuBtn').addEventListener('click', e => { e.stopPropagation(); goMenu(); });
+$('pilot').addEventListener('change', () => {
+  const n = cleanName($('pilot').value);
+  $('pilot').value = n;
+  if (n && n !== pilotName) { pilotName = n; save(); submitScore(); }
 });
 
-// ---------- state ----------
-let testNo = 1, best = 0;
-try {
-  testNo = +localStorage.getItem('t47_test') || 1; best = +localStorage.getItem('t47_best') || 0;
-  unlocked = Math.min(LEVELS.length - 1, +localStorage.getItem('t47_unlocked') || 0);
-  level = Math.min(unlocked, +localStorage.getItem('t47_level') || 0);
-  muted = localStorage.getItem('t47_mute') === '1';
-} catch (e) {}
-function save() {
-  try {
-    localStorage.setItem('t47_test', testNo); localStorage.setItem('t47_best', best);
-    localStorage.setItem('t47_level', level); localStorage.setItem('t47_unlocked', unlocked);
-    localStorage.setItem('t47_mute', muted ? '1' : '0');
-  } catch (e) {}
+// splash: real font loading plus a minimum time; returning players get a short one
+const splash = { t0: performance.now(), min: store.get('t47_seen') ? 700 : 2600, fonts: false, ready: false };
+Promise.race([
+  Promise.all(['400 20px Michroma', '500 20px "Chakra Petch"', '600 20px "Chakra Petch"', '700 20px "Chakra Petch"']
+    .map(f => document.fonts ? document.fonts.load(f) : null)),
+  new Promise(r => setTimeout(r, 3000)),
+]).then(() => { splash.fonts = true; });
+$('splash').addEventListener('pointerdown', () => { ensureAudio(); if (splash.ready) enterMenu(); });
+const LOAD_STEPS = ['CARGANDO GAS FRÍO', 'CALIBRANDO SUCCIÓN', 'ALINEANDO PROPULSORES', 'LISTO'];
+function stepSplash(now) {
+  let p = Math.min(1, (now - splash.t0) / splash.min);
+  if (!splash.fonts) p = Math.min(p, 0.92);
+  $('loadBar').style.width = (p * 100).toFixed(1) + '%';
+  $('loadPct').textContent = Math.round(p * 100) + '%';
+  $('loadText').textContent = LOAD_STEPS[Math.min(3, Math.floor(p * 3.999))];
+  if (p >= 1 && !splash.ready) {
+    splash.ready = true;
+    $('skipHint').textContent = isTouch ? 'TOCÁ PARA ENTRAR' : 'PRESIONÁ CUALQUIER TECLA';
+    setTimeout(enterMenu, store.get('t47_played') ? 150 : 900);
+  }
 }
 
+// ---------- state ----------
 let state, particles, trail, flash;
 function reset(next) {
   if (next) {
@@ -238,7 +616,7 @@ function reset(next) {
   }
   state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: lvl().gas,
             exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
-            passed: false, onPad: false, miss: 0, slowUsed: false, slowLeft: 0,
+            passed: false, onPad: false, miss: 0, slowUsed: false, slowLeft: 0, newBest: false,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
   particles = []; trail = []; flash = 0; camX = 0;
   placeOnTrack();
@@ -253,6 +631,7 @@ function placeOnTrack() {
   return p;
 }
 const norm = a => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+const clamp01 = v => Math.max(0, Math.min(1, v));
 
 function leaveTrack(p, why) {
   const c = state;
@@ -328,7 +707,7 @@ function touchdown() {
     for (let i = 0; i < 60; i++) {
       const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 240;
       particles.push({ x: c.x, y: Math.min(c.y, FLOOR - 4), vx: Math.cos(a) * s + c.vx * 0.3, vy: -Math.abs(Math.sin(a) * s),
-                       life: 1.4, max: 1.4, r: 1.5 + Math.random() * 2.5, col: Math.random() < 0.3 ? '255,60,70' : '230,230,235', g: true });
+                       life: 1.4, max: 1.4, r: 1.5 + Math.random() * 2.5, col: Math.random() < 0.3 ? '255,42,58' : '230,230,235', g: true });
     }
   } else {
     c.mode = 'landed'; sfx('land');
@@ -339,11 +718,13 @@ function touchdown() {
       c.passed = true;
       unlocked = Math.max(unlocked, Math.min(level + 1, LEVELS.length - 1));
       if (c.score > best) best = c.score;
-      save(); sfx('win');
+      if (c.score > (bests[level] || 0)) { bests[level] = c.score; c.newBest = true; }
+      save(); sfx('win'); submitScore();
     } else {
       c.miss = (off - L.w / 2) / 10;   // metres from the nearest pad edge
     }
-    c.th = 0; c.w = 0; c.y = FLOOR - 11; c.vy = 0;
+    c.th = 0;
+    c.w = 0; c.y = FLOOR - 11; c.vy = 0;
   }
 }
 
@@ -385,28 +766,52 @@ function step(dt) {
     s.x += wnd * 5 * dt;
     if (s.x > W + 40) s.x -= W + 80; else if (s.x < -40) s.x += W + 80;
   }
-  // keep the car at least 150px from the left edge of the screen
   const target = c.mode === 'ready' || c.mode === 'ramp' ? 0 : Math.max(LEFT, Math.min(0, c.x - 150));
   camX += (target - camX) * Math.min(1, dt * 5);
 }
 
-// ---------- drawing ----------
-function spaced(text, x, y, sp) {
-  let w = 0; for (const ch of text) w += ctx.measureText(ch).width + sp; w -= sp;
-  let cx = x - w / 2;
-  for (const ch of text) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + sp; }
+// ---------- drawing helpers ----------
+function txt(g, s, x, y, font, color, align = 'left', ls = 0, base = 'middle') {
+  g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = base;
+  g.letterSpacing = ls + 'px';
+  g.fillText(s, align === 'center' ? x + ls / 2 : x, y);
+  g.letterSpacing = '0px';
 }
 
+// the car in local coordinates: nose +x, roof −y, 72 px long, wheels touch y = 11
+function paintCar(g) {
+  const gr = g.createLinearGradient(0, -16, 0, 6);
+  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.55, '#c7c9cf'); gr.addColorStop(1, '#6f7179');
+  g.fillStyle = gr;
+  g.beginPath();
+  g.moveTo(-36, 3); g.lineTo(-36, -4);
+  g.quadraticCurveTo(-28, -9, -14, -13); g.quadraticCurveTo(0, -17, 12, -13);
+  g.quadraticCurveTo(28, -7, 36, -2); g.lineTo(36, 3); g.closePath(); g.fill();
+  g.fillStyle = '#16161b';
+  g.beginPath(); g.moveTo(-18, -10); g.quadraticCurveTo(-2, -15.5, 12, -11.5);
+  g.quadraticCurveTo(18, -9.5, 20, -8.5); g.lineTo(-20, -8.5); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(-30, -1, 60, 0.8);
+  for (const wx of [-23, 23]) {
+    g.fillStyle = '#0b0b0d'; g.beginPath(); g.arc(wx, 4, 7, 0, 7); g.fill();
+    g.fillStyle = '#b8bac0'; g.beginPath(); g.arc(wx, 4, 3, 0, 7); g.fill();
+  }
+  g.save(); g.shadowBlur = 12;
+  g.shadowColor = RED; g.fillStyle = '#ff3a48'; g.fillRect(-37, -4, 3, 4);
+  g.shadowColor = '#ffffff'; g.fillStyle = '#ffffff'; g.fillRect(34, -3, 3, 3);
+  g.restore();
+}
+
+// ---------- world drawing ----------
 function drawBackground() {
   const g = ctx.createRadialGradient(270, 560, 10, 270, 560, 330);
-  g.addColorStop(0, 'rgba(60,60,64,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  g.addColorStop(0, 'rgba(60,60,66,0.32)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 150, W, 700);
-  ctx.fillStyle = '#070708'; ctx.fillRect(LEFT - 400, 460, W - LEFT + 400, FLOOR - 460);  // far horizon band
+  ctx.fillStyle = '#060607'; ctx.fillRect(LEFT - 400, 460, W - LEFT + 400, FLOOR - 460);  // far horizon band
   for (const s of stars) { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fillRect(s.x, s.y, 1.2, 1.2); }
 }
 
 function drawScaffold() {
-  ctx.strokeStyle = 'rgba(210,210,215,0.35)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(210,212,218,0.32)'; ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.rect(190, 152, W - 190, 22);
   for (let x = 200; x < W; x += 22) { ctx.moveTo(x, 152); ctx.lineTo(x + 20, 174); }
@@ -421,10 +826,10 @@ function drawScaffold() {
 
 function drawTrack() {
   ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#2b2b2f'; ctx.lineWidth = 14; ctx.stroke(trackSkirt);
-  ctx.strokeStyle = '#7a7a80'; ctx.lineWidth = 28; ctx.stroke(trackBand);
+  ctx.strokeStyle = '#26262b'; ctx.lineWidth = 14; ctx.stroke(trackSkirt);
+  ctx.strokeStyle = '#76777e'; ctx.lineWidth = 28; ctx.stroke(trackBand);
   ctx.save();
-  ctx.shadowColor = '#ff2a3a'; ctx.shadowBlur = 10; ctx.strokeStyle = '#ff5a66'; ctx.lineWidth = 2.2;
+  ctx.shadowColor = RED; ctx.shadowBlur = 10; ctx.strokeStyle = '#ff4a58'; ctx.lineWidth = 2.2;
   ctx.stroke(edgeIn); ctx.stroke(edgeOut);
   ctx.shadowColor = '#fff'; ctx.shadowBlur = 6; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2;
   ctx.stroke(centerLine);
@@ -435,23 +840,7 @@ function drawCar(alpha) {
   const c = state;
   if (c.mode === 'crashed') return;
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(c.x, c.y); ctx.rotate(c.th);
-  const g = ctx.createLinearGradient(0, -16, 0, 6);
-  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#85858c');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.moveTo(-36, 3); ctx.lineTo(-36, -4);
-  ctx.quadraticCurveTo(-28, -9, -14, -13); ctx.quadraticCurveTo(0, -17, 12, -13);
-  ctx.quadraticCurveTo(28, -7, 36, -2); ctx.lineTo(36, 3); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#1b1b20';
-  ctx.beginPath(); ctx.moveTo(-18, -10); ctx.quadraticCurveTo(-2, -15.5, 12, -11.5);
-  ctx.quadraticCurveTo(18, -9.5, 20, -8.5); ctx.lineTo(-20, -8.5); ctx.closePath(); ctx.fill();
-  for (const wx of [-23, 23]) {
-    ctx.fillStyle = '#0d0d0f'; ctx.beginPath(); ctx.arc(wx, 4, 7, 0, 7); ctx.fill();
-    ctx.fillStyle = '#b8b8be'; ctx.beginPath(); ctx.arc(wx, 4, 3, 0, 7); ctx.fill();
-  }
-  ctx.shadowBlur = 12;
-  ctx.shadowColor = '#ff2030'; ctx.fillStyle = '#ff3a48'; ctx.fillRect(-37, -4, 3, 4);
-  ctx.shadowColor = '#ffffff'; ctx.fillStyle = '#ffffff'; ctx.fillRect(34, -3, 3, 3);
+  paintCar(ctx);
   ctx.restore();
 }
 
@@ -459,7 +848,7 @@ function drawTrail(alpha) {
   if (trail.length < 2) return;
   ctx.save(); ctx.globalAlpha = alpha; ctx.lineWidth = 2; ctx.lineCap = 'round';
   for (let i = 1; i < trail.length; i++) {
-    ctx.strokeStyle = `rgba(255,50,60,${i / trail.length * 0.8})`;
+    ctx.strokeStyle = `rgba(255,42,58,${i / trail.length * 0.8})`;
     ctx.beginPath(); ctx.moveTo(trail[i - 1].x, trail[i - 1].y); ctx.lineTo(trail[i].x, trail[i].y); ctx.stroke();
   }
   ctx.restore();
@@ -493,14 +882,11 @@ function drawPad() {
   const g = ctx.createLinearGradient(0, FLOOR - 60, 0, FLOOR);
   g.addColorStop(0, 'rgba(91,227,138,0)'); g.addColorStop(1, 'rgba(91,227,138,0.13)');
   ctx.fillStyle = g; ctx.fillRect(x0, FLOOR - 60, L.w, 60);
-  ctx.save(); ctx.shadowColor = '#5be38a'; ctx.shadowBlur = 10; ctx.fillStyle = '#5be38a';
+  ctx.save(); ctx.shadowColor = OK; ctx.shadowBlur = 10; ctx.fillStyle = OK;
   ctx.fillRect(x0, FLOOR - 2, L.w, 3);
   ctx.fillRect(x0 - 1, FLOOR - 14, 2, 14); ctx.fillRect(x1 - 1, FLOOR - 14, 2, 14);
   ctx.restore();
-  ctx.fillStyle = 'rgba(91,227,138,0.85)'; ctx.font = '500 8px Orbitron, monospace';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('ZONA DE ATERRIZAJE', L.pad, FLOOR - 18);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  txt(ctx, 'ZONA DE ATERRIZAJE', L.pad, FLOOR - 46, `600 9px ${FU}`, 'rgba(91,227,138,0.9)', 'center', 2, 'bottom');
 }
 
 // ballistic path with no thrusters: from the car in the air, or from the ramp exit at the current speed
@@ -523,7 +909,7 @@ function predictPath() {
 function drawPrediction() {
   const pts = predictPath(); if (!pts) return;
   const L = lvl(), ex = pts[pts.length - 1][0];
-  const col = Math.abs(ex - L.pad) <= L.w / 2 ? '91,227,138' : '255,90,102';
+  const col = Math.abs(ex - L.pad) <= L.w / 2 ? '91,227,138' : '255,74,88';
   ctx.save(); ctx.setLineDash([3, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${col},0.55)`;
   ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
   ctx.setLineDash([]); ctx.strokeStyle = `rgba(${col},0.95)`; ctx.lineWidth = 2;
@@ -542,165 +928,220 @@ function drawWind() {
 
 function drawGround() {
   // distance marks every 10 m from the ramp exit, plus the far barrier
-  ctx.font = '500 8px Orbitron, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  for (let m = 10; 190 - m * 10 > LEFT + 20; m += 10) {
-    const x = 190 - m * 10;
+  for (let m = 10; EXIT_X - m * 10 > LEFT + 20; m += 10) {
+    const x = EXIT_X - m * 10;
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, FLOOR, 1, 6);
-    ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillText(`${m} m`, x, FLOOR + 9);
+    txt(ctx, `${m} m`, x, FLOOR + 9, `500 9px ${FU}`, 'rgba(255,255,255,0.3)', 'center', 1, 'top');
   }
-  ctx.strokeStyle = 'rgba(255,90,102,0.5)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,74,88,0.5)'; ctx.lineWidth = 1;
   ctx.beginPath();
   for (let y = 300; y < FLOOR; y += 40) { ctx.moveTo(LEFT, y); ctx.lineTo(LEFT + 14, y + 20); ctx.moveTo(LEFT + 14, y + 20); ctx.lineTo(LEFT, y + 40); }
   ctx.moveTo(LEFT, 300); ctx.lineTo(LEFT, FLOOR); ctx.moveTo(LEFT + 14, 300); ctx.lineTo(LEFT + 14, FLOOR);
   ctx.stroke();
-  ctx.textAlign = 'left';
 }
 
+// ---------- header ----------
 function drawHeader() {
   const c = state;
-  ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f2f2';
-  ctx.font = '700 15px Orbitron, monospace';
   const head = c.mode === 'crashed' ? 'NOBODY SAW THE FAILURES.'
              : c.mode === 'landed' && !c.onPad ? 'SO CLOSE.' : 'EVERYONE SAW THE SUCCESS.';
-  spaced(head, W / 2, 62, 3.5);
-  ctx.font = '500 11px Orbitron, monospace'; ctx.fillStyle = '#bbb';
-  const n = String(testNo).padStart(2, '0');
-  ctx.textAlign = 'right'; spaced('TEST', W / 2 - 4, 108, 4);
-  ctx.textAlign = 'left'; ctx.font = '700 22px Orbitron, monospace'; ctx.fillStyle = '#fff';
-  ctx.fillText(n, W / 2 + 22, 107);
+  txt(ctx, head, W / 2, 64, `400 12.5px ${FD}`, '#f2f3f5', 'center', 3.2);
+  ctx.font = `500 10px ${FU}`; ctx.letterSpacing = '4px';
+  const lw = ctx.measureText('TEST').width; ctx.letterSpacing = '0px';
+  ctx.font = `600 26px ${FU}`;
+  const n = String(testNo).padStart(2, '0'), nw = ctx.measureText(n).width;
+  const x0 = W / 2 - (lw + 8 + nw) / 2;
+  txt(ctx, 'TEST', x0, 103, `500 10px ${FU}`, DIM, 'left', 4);
+  txt(ctx, n, x0 + lw + 8, 102, `600 26px ${FU}`, '#fff');
   const L = lvl(), wnd = L.wind / 10;
-  ctx.font = '500 8.5px Orbitron, monospace'; ctx.fillStyle = '#7d7d84'; ctx.textAlign = 'center';
-  ctx.fillText(`NIVEL ${level + 1}/${LEVELS.length}  ·  ZONA A ${Math.round((EXIT_X - L.pad) / 10)} m  ·  ` +
-               (wnd ? `VIENTO ${wnd > 0 ? '→' : '←'} ${Math.abs(wnd).toFixed(1)} m/s²` : 'SIN VIENTO'), W / 2, 132);
-  ctx.textAlign = 'right'; ctx.fillStyle = muted ? '#55555b' : '#9a9aa0';
-  ctx.fillText(muted ? 'SONIDO OFF' : 'SONIDO ON', W - 12, 20);
-  ctx.textAlign = 'left';
+  txt(ctx, `NIVEL ${level + 1}/${LEVELS.length}   ·   ZONA ${padDist(L)} m   ·   ` +
+           (wnd ? `VIENTO ${wnd > 0 ? '→' : '←'} ${Math.abs(wnd).toFixed(1)} m/s²` : 'SIN VIENTO'),
+      W / 2, 133, `500 10px ${FU}`, DIM, 'center', 1.5);
 }
 
-function bar(x, y, w, frac, col) {
-  ctx.fillStyle = '#1c1c20'; ctx.fillRect(x, y, w, 5);
-  ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), 5);
+// ---------- instrument cluster ----------
+function gauge(cx, cy, r, frac, value, unit, col) {
+  const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#141418'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+  ctx.strokeStyle = 'rgba(201,204,212,0.3)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i <= 10; i++) {
+    const a = a0 + (a1 - a0) * i / 10, r0 = r - 9, r1 = r - (i % 5 ? 12 : 15);
+    ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+  }
+  ctx.stroke();
+  ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.strokeStyle = col; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * clamp01(frac)); ctx.stroke(); ctx.restore();
+  txt(ctx, value, cx, cy - 2, `600 24px ${FU}`, '#fff', 'center');
+  txt(ctx, unit, cx, cy + 17, `500 9px ${FU}`, DIM, 'center', 1.5);
+}
+
+function attitude(cx, cy, r, th, good) {
+  ctx.strokeStyle = '#141418'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+  ctx.save(); ctx.shadowColor = OK; ctx.shadowBlur = 8; ctx.strokeStyle = OK; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2 - 0.21, -Math.PI / 2 + 0.21); ctx.stroke(); ctx.restore();
+  ctx.strokeStyle = 'rgba(201,204,212,0.3)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6, r0 = r - 9, r1 = r - (i % 3 ? 12 : 15);
+    ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+  }
+  ctx.stroke();
+  // roof pointer on the ring
+  const pa = th - Math.PI / 2;
+  ctx.save(); ctx.shadowColor = good ? OK : RED; ctx.shadowBlur = 10; ctx.fillStyle = good ? OK : RED;
+  ctx.beginPath(); ctx.arc(cx + Math.cos(pa) * r, cy + Math.sin(pa) * r, 4, 0, 7); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(th); ctx.scale(0.55, 0.55); ctx.translate(0, 2); paintCar(ctx); ctx.restore();
+}
+
+function envelopeRow(y, label, value, unit, v, max, limit) {
+  const x0 = 136, x1 = 324, w = x1 - x0, good = v <= limit, col = good ? OK : '#ff4a58';
+  txt(ctx, label, x0, y, `500 9px ${FU}`, DIM, 'left', 1.6);
+  txt(ctx, value, x1 - 24, y, `600 14px ${FU}`, col, 'right');
+  txt(ctx, unit, x1, y + 1, `500 9px ${FU}`, DIM, 'right');
+  const by = y + 11;
+  ctx.fillStyle = '#141418'; ctx.fillRect(x0, by, w, 3);
+  ctx.fillStyle = 'rgba(91,227,138,0.32)'; ctx.fillRect(x0, by, w * limit / max, 3);
+  const mx = x0 + w * clamp01(v / max);
+  ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 6; ctx.fillStyle = col; ctx.fillRect(mx - 1.5, by - 4, 3, 11); ctx.restore();
+}
+
+function pill(x, y, w, label, on, col) {
+  ctx.strokeStyle = on ? col : 'rgba(201,204,212,0.25)'; ctx.lineWidth = 1;
+  ctx.fillStyle = on ? col.replace(')', ',0.16)').replace('rgb', 'rgba') : 'rgba(0,0,0,0)';
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x + 0.5, y - 9.5, w, 19, 10) : ctx.rect(x + 0.5, y - 9.5, w, 19);
+  ctx.fill(); ctx.stroke();
+  txt(ctx, label, x + w / 2 + 0.5, y + 0.5, `600 9px ${FU}`, on ? '#fff' : DIM, 'center', 1.4);
 }
 
 function drawHUD() {
-  const c = state, air = c.mode === 'air' || c.mode === 'landed' || c.mode === 'crashed';
-  const ang = Math.abs(norm(c.th)) * 180 / Math.PI;
-  const vy = c.vy / 10, vx = Math.abs(c.vx) / 10;
-  const ok = '#5be38a', bad = '#ff4a58', dim = '#8a8a90';
-  ctx.font = '500 9px Orbitron, monospace'; ctx.textBaseline = 'middle';
+  const c = state, air = c.mode !== 'ramp' && c.mode !== 'ready';
+  const ang = Math.abs(norm(c.th)) * 180 / Math.PI, vy = Math.max(0, c.vy / 10), vx = Math.abs(c.vx) / 10;
+  const top = 806;
+  // console plate: fade to black, silver hairline with a red centre mark
+  let g = ctx.createLinearGradient(0, top - 40, 0, top + 10);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, '#000');
+  ctx.fillStyle = g; ctx.fillRect(0, top - 40, W, 50); ctx.fillStyle = '#000'; ctx.fillRect(0, top + 10, W, H - top);
+  g = ctx.createLinearGradient(16, 0, W - 16, 0);
+  g.addColorStop(0, 'rgba(201,204,212,0)'); g.addColorStop(0.5, 'rgba(201,204,212,0.4)'); g.addColorStop(1, 'rgba(201,204,212,0)');
+  ctx.fillStyle = g; ctx.fillRect(16, top, W - 32, 1);
+  ctx.fillStyle = RED; ctx.fillRect(W / 2 - 14, top - 1, 28, 3);
 
-  // telemetry (left column)
-  const rows = c.mode === 'ramp' || c.mode === 'ready'
-    ? [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
-       ['VELOCIDAD', `${(c.v / 10).toFixed(1)} m/s`, c.v / 480, '#ddd'],
-       ['ZONA', `${Math.round((EXIT_X - lvl().pad) / 10)} m`, 0, '#5be38a'],
-       ['SUCCIÓN', c.suction && c.gas > 0 ? 'ON' : 'OFF', c.suction ? 1 : 0, c.suction ? '#ff5a66' : dim]]
-    : [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
-       ['ÁNGULO', `${ang.toFixed(0)}°`, 1 - ang / 180, ang <= 12 ? ok : bad],
-       ['V. VERTICAL', `${vy.toFixed(1)} m/s`, 1 - Math.max(0, vy) / 40, vy <= 12 ? ok : bad],
-       ['V. HORIZONTAL', `${vx.toFixed(1)} m/s`, 1 - vx / 40, vx <= 13 ? ok : bad]];
-  rows.forEach(([label, val, f, col], i) => {
-    const y = 852 + i * 26;
-    ctx.fillStyle = dim; ctx.textAlign = 'left'; ctx.fillText(label, 20, y);
-    ctx.fillStyle = col; ctx.textAlign = 'right'; ctx.fillText(val, 180, y);
-    bar(20, y + 8, 160, f, col);
+  // left: cold gas
+  const gasCol = c.gas > 30 ? SILVER : RED;
+  gauge(66, 866, 42, c.gas / 100, c.gas.toFixed(0), '% GAS', gasCol);
+  txt(ctx, 'GAS FRÍO', 66, 924, `500 9px ${FU}`, DIM, 'center', 2);
+
+  // right: attitude
+  attitude(W - 66, 866, 42, c.th, ang <= 12);
+  txt(ctx, `ACTITUD ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`, ang <= 12 ? OK : DIM, 'center', 2);
+
+  // centre: speed on the ramp, landing envelope in the air
+  if (!air) {
+    txt(ctx, 'VELOCIDAD', 136, 830, `500 9px ${FU}`, DIM, 'left', 2);
+    const v = (c.v / 10).toFixed(1);
+    txt(ctx, v, 134, 860, `600 36px ${FU}`, '#fff');
+    ctx.font = `600 36px ${FU}`; const vw = ctx.measureText(v).width;
+    txt(ctx, 'm/s', 140 + vw, 866, `500 11px ${FU}`, DIM);
+    const segs = 24, lit = Math.round(clamp01(c.v / 480) * segs), sw = (324 - 136 - (segs - 1) * 2) / segs;
+    for (let i = 0; i < segs; i++) {
+      ctx.fillStyle = i < lit ? (i > 18 ? RED : SILVER) : '#16161a';
+      ctx.fillRect(136 + i * (sw + 2), 884, sw, 6);
+    }
+    pill(136, 910, 92, c.suction && c.gas > 0 ? 'SUCCIÓN ON' : 'SUCCIÓN OFF', c.suction && c.gas > 0, 'rgb(255,42,58)');
+    pill(234, 910, 90, `ZONA ${padDist(lvl())} m`, true, 'rgb(91,227,138)');
+  } else {
+    txt(ctx, 'ENVOLVENTE DE ATERRIZAJE', 230, 828, `500 8.5px ${FU}`, FAINT, 'center', 2);
+    envelopeRow(848, 'INCLINACIÓN', ang.toFixed(0), '°', ang, 90, 12);
+    envelopeRow(874, 'CAÍDA', vy.toFixed(1), 'm/s', vy, 40, 12);
+    envelopeRow(900, 'DERIVA', vx.toFixed(1), 'm/s', vx, 40, 13);
+  }
+
+  // thruster usage chips
+  const chips = [['▲', air ? 'PROPULSOR' : 'ACELERAR', 'up'], ['◀', 'GIRO', 'left'], ['▶', 'GIRO', 'right'], ['◉', 'SUCCIÓN', 'space']];
+  const cw = (W - 32 - 3 * 8) / 4;
+  chips.forEach(([sym, label, k], i) => {
+    const x = 16 + i * (cw + 8), y = 938, t = c.use[k];
+    const on = k === 'space' ? c.suction && c.mode === 'ramp' : keys[k] && (k !== 'up' || c.mode === 'ramp' || c.armed);
+    ctx.save();
+    if (on) { ctx.shadowColor = RED; ctx.shadowBlur = 12; }
+    ctx.fillStyle = on ? 'rgba(255,42,58,0.12)' : '#08080a'; ctx.fillRect(x, y, cw, 34);
+    ctx.strokeStyle = on ? RED : '#26272c'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, cw - 1, 33);
+    ctx.restore();
+    txt(ctx, `${sym} ${label}`, x + 8, y + 11, `600 8.5px ${FU}`, on ? '#fff' : DIM, 'left', 1);
+    txt(ctx, `${t.toFixed(1)} s`, x + 8, y + 24, `600 12px ${FU}`, t > 0 ? '#fff' : FAINT, 'left');
   });
 
-  // thruster usage (middle column)
-  const use = [['▲', air ? 'PROPULSOR' : 'ACELERAR', 'up'], ['◀', 'GIRO IZQ', 'left'], ['▶', 'GIRO DER', 'right'], ['␣', 'SUCCIÓN', 'space']];
-  use.forEach(([sym, label, k], i) => {
-    const y = 852 + i * 26, t = c.use[k], on = k === 'space' ? c.suction && c.mode === 'ramp' : keys[k];
-    ctx.fillStyle = on ? '#ff3a48' : '#333'; ctx.beginPath(); ctx.arc(204, y, 3.5, 0, 7); ctx.fill();
-    ctx.fillStyle = dim; ctx.textAlign = 'left'; ctx.fillText(`${sym} ${label}`, 214, y);
-    ctx.fillStyle = t > 0 ? '#ddd' : '#555'; ctx.textAlign = 'right'; ctx.fillText(`${t.toFixed(1)}s`, 336, y);
-    bar(214, y + 8, 122, t / 3, on ? '#ff5a66' : '#77777d');
-  });
-
-  // attitude dial (right)
-  const cx = 398, cy = 890, R = 38;
-  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
-  ctx.strokeStyle = ok; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2 - 0.21, -Math.PI / 2 + 0.21); ctx.stroke();
-  ctx.save(); ctx.translate(cx, cy); ctx.rotate(c.th);
-  ctx.strokeStyle = ang <= 12 ? ok : '#ddd'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -R + 6); ctx.stroke();      // roof direction
-  ctx.fillStyle = '#ddd'; ctx.fillRect(-16, -2, 32, 5);
-  ctx.fillStyle = '#ff3a48'; ctx.fillRect(-17, -2, 3, 3);
-  ctx.restore();
-  ctx.fillStyle = dim; ctx.textAlign = 'center'; ctx.fillText('ACTITUD', cx, cy + R + 12);
-
-  ctx.fillStyle = '#5a5a60'; ctx.font = '500 8.5px Orbitron, monospace';
-  ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN ON/OFF', W / 2, 958);
-  ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO · LENTO (NIV. 1-3)' : 'AIRE: ↑ PROPULSOR · ← → GIRO · ESPACIO CÁMARA LENTA (NIV. 1-3)', W / 2, 972);
-  ctx.fillText(isTouch ? 'REINICIAR: TOCÁ LA PANTALLA' : 'ESPACIO / R REINICIAR · M SONIDO · 1-7 NIVEL', W / 2, 986);
-  ctx.textAlign = 'left';
+  // context hint
+  const over = c.mode === 'landed' || c.mode === 'crashed';
+  const hint = isTouch ? (over ? 'TOCÁ LA PANTALLA PARA SEGUIR' : '')
+    : over ? `ESPACIO ${c.passed ? 'SEGUIR' : 'REINTENTAR'}   ·   ESC MENÚ`
+    : air ? `↑ PROPULSOR   ·   ← → GIRO${level < EASY_LEVELS ? '   ·   ESPACIO CÁMARA LENTA' : ''}`
+    : '↑ ACELERAR   ·   ↓ FRENAR   ·   ESPACIO SUCCIÓN   ·   ESC MENÚ';
+  if (hint) txt(ctx, hint, W / 2, 990, `500 9px ${FU}`, FAINT, 'center', 1.5);
 }
 
+// ---------- result & message panels ----------
 function panel(lines, y0) {
-  const h = lines.length * 22 + 26;
-  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.fillRect(24, y0, 270, h); ctx.strokeRect(24.5, y0 + 0.5, 270, h);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  lines.forEach(([t, font, col], i) => { ctx.font = font; ctx.fillStyle = col; ctx.fillText(t, 40, y0 + 24 + i * 22); });
+  const x = 24, w = 280, lh = 22, h = lines.length * lh + 28;
+  ctx.fillStyle = 'rgba(4,4,6,0.88)'; ctx.fillRect(x, y0, w, h);
+  ctx.strokeStyle = 'rgba(201,204,212,0.2)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y0 + 0.5, w - 1, h - 1);
+  ctx.fillStyle = RED; ctx.fillRect(x, y0, 44, 2);
+  const fonts = { T: [`400 11.5px ${FD}`, 1.5], B: [`600 15px ${FU}`, 0.5], S: [`500 12px ${FU}`, 0.3], A: [`700 11px ${FU}`, 2] };
+  lines.forEach(([t, kind, col], i) => txt(ctx, t, x + 16, y0 + 26 + i * lh, fonts[kind][0], col, 'left', fonts[kind][1]));
 }
+
+function banner(text, y, col) { txt(ctx, text, W / 2, y, `600 12px ${FU}`, col, 'center', 1.5); }
 
 function drawOverlay() {
-  const c = state, B = '700 13px Orbitron, monospace', S = '500 9.5px Orbitron, monospace';
+  const c = state, SUB = '#b5b8bf';
+  const act = (touch, key) => isTouch ? touch : key;
   if (c.mode === 'ready') {
     const L = lvl();
-    panel([[`NIVEL ${level + 1}: ZONA A ${Math.round((EXIT_X - L.pad) / 10)} m`, B, '#5be38a'],
-           ['1. Subí la rampa (↑). La SUCCIÓN arranca', S, '#bbb'],
-           ['   prendida (espacio la prende/apaga).', S, '#bbb'],
-           ['2. Salís boca abajo: girá con ← →', S, '#bbb'],
-           ['3. Frená la caída con ↑ (empuja', S, '#bbb'],
-           ['   hacia donde apunta el techo).', S, '#bbb'],
-           ['4. Aterrizá con las 4 ruedas:', S, '#bbb'],
-           ['   < 12°, < 12 m/s, dentro de la ZONA.', S, '#bbb'],
-           ['La línea punteada muestra dónde caés.', S, '#bbb'],
-           ...(level < EASY_LEVELS ? [[`AYUDA: ${isTouch ? 'LENTO' : 'ESPACIO'} en el aire = cámara lenta 5 s`, S, '#7fb8ff']] : []),
-           ['PRESIONÁ ↑ PARA ARRANCAR', B, '#ff5a66']], 300);
+    panel([[`NIVEL ${level + 1} · ZONA ${padDist(L)} m`, 'T', OK],
+           [`1  Subí la rampa con ${act('▲', '↑')}. La succión`, 'S', SUB],
+           ['    arranca prendida: te pega a la pared.', 'S', SUB],
+           [`2  Salís boca abajo: girá con ${act('⟲ ⟳', '← →')}.`, 'S', SUB],
+           [`3  Frená la caída con ${act('▲', '↑')}: empuja`, 'S', SUB],
+           ['    hacia donde apunta el techo.', 'S', SUB],
+           ['4  Caé con las 4 ruedas dentro de la zona:', 'S', SUB],
+           ['    menos de 12° y de 12 m/s.', 'S', SUB],
+           ['La línea punteada muestra dónde caés.', 'S', DIM],
+           ...(level < EASY_LEVELS ? [[`AYUDA: ${act('LENTO', 'ESPACIO')} en el aire = cámara lenta`, 'S', '#7fb8ff']] : []),
+           [act('MANTENÉ ▲ PARA ARRANCAR', 'MANTENÉ ↑ PARA ARRANCAR'), 'A', RED]], 290);
   } else if (c.mode === 'landed' && !c.onPad) {
     const short = c.x > lvl().pad;   // the car flies left, so landing right of the pad means it fell short
-    panel([['AUTO INTACTO, FUERA DE ZONA', B, '#ffb347'],
-           [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m`, S, '#ddd'],
-           [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', S, '#bbb'],
-           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'ESPACIO: REINTENTAR', B, '#ff5a66']], 320);
+    panel([['FUERA DE ZONA', 'T', '#ffb347'],
+           ['El auto quedó entero.', 'S', '#e6e7ea'],
+           [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m.`, 'S', '#e6e7ea'],
+           [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', 'S', SUB],
+           [act('TOCÁ PARA REINTENTAR', 'ESPACIO · REINTENTAR'), 'A', RED]], 320);
   } else if (c.mode === 'landed') {
-    const last = level === LEVELS.length - 1;
-    panel([['ATERRIZAJE EN LA ZONA', B, '#5be38a'],
-           [`PUNTAJE  ${c.score}`, B, '#fff'],
-           [`MEJOR    ${best}`, S, '#bbb'],
-           [`Salida de rampa: ${(c.exitSpeed / 10).toFixed(1)} m/s`, S, '#bbb'],
-           [`Gas restante: ${c.gas.toFixed(0)}%`, S, '#bbb'],
-           [last ? '¡SUPERASTE LOS 7 NIVELES!' : `Desbloqueaste el NIVEL ${level + 2}`, S, '#5be38a'],
-           [isTouch ? 'TOCÁ PARA SEGUIR' : 'ESPACIO: SEGUIR', B, '#ff5a66']], 320);
+    const last = level === LEVELS.length - 1, r = myRank();
+    panel([['ATERRIZAJE PERFECTO', 'T', OK],
+           [`${c.score} PUNTOS${c.newBest ? '  ·  RÉCORD' : ''}`, 'B', '#fff'],
+           [`Salida de rampa ${(c.exitSpeed / 10).toFixed(1)} m/s · gas ${c.gas.toFixed(0)}%`, 'S', SUB],
+           [`Total ${totalPoints().toLocaleString('es-AR')} pts${r ? ` · puesto mundial #${r}` : ''}`, 'S', SUB],
+           [last ? 'Superaste los 7 niveles.' : `Desbloqueaste el nivel ${level + 2}.`, 'S', OK],
+           [act('TOCÁ PARA SEGUIR', 'ESPACIO · SEGUIR'), 'A', RED]], 320);
   } else if (c.mode === 'crashed') {
-    panel([['IMPACTO — AUTO DESTRUIDO', B, '#ff4a58'],
-           ...c.reasons.map(r => ['· ' + r, S, '#ddd']),
-           ...(c.msg ? [['· Se despegó: ' + c.msg, S, '#ddd']] : []),
-           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'ESPACIO: REINTENTAR', B, '#ff5a66']], 320);
+    panel([['IMPACTO · AUTO DESTRUIDO', 'T', '#ff4a58'],
+           ...c.reasons.map(r => [r, 'S', '#e6e7ea']),
+           ...(c.msg ? [['Se despegó de la rampa: ' + c.msg.toLowerCase(), 'S', '#e6e7ea']] : []),
+           [act('TOCÁ PARA REINTENTAR', 'ESPACIO · REINTENTAR'), 'A', RED]], 320);
   } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
-    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
-    ctx.fillText(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', W / 2, 156); ctx.textAlign = 'left';
+    banner(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', 158, '#ff4a58');
   } else if (c.mode === 'air' && !c.armed && keys.up) {
-    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ddd'; ctx.textAlign = 'center';
-    ctx.fillText('SOLTÁ ↑ Y VOLVÉ A APRETAR PARA EL PROPULSOR', W / 2, 156); ctx.textAlign = 'left';
+    banner('SOLTÁ Y VOLVÉ A APRETAR PARA EL PROPULSOR', 158, SILVER);
   }
   if (c.slowLeft > 0) {
-    ctx.fillStyle = 'rgba(80,140,255,0.07)'; ctx.fillRect(0, 0, W, H);
-    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#7fb8ff'; ctx.textAlign = 'center';
-    ctx.fillText(`CÁMARA LENTA  ${c.slowLeft.toFixed(1)} s`, W / 2, 178);
-    ctx.fillStyle = '#1c2230'; ctx.fillRect(W / 2 - 70, 188, 140, 3);
-    ctx.fillStyle = '#7fb8ff'; ctx.fillRect(W / 2 - 70, 188, 140 * c.slowLeft / SLOW_TIME, 3);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(80,140,255,0.06)'; ctx.fillRect(0, 0, W, H);
+    banner(`CÁMARA LENTA  ${c.slowLeft.toFixed(1)} s`, 180, '#7fb8ff');
+    ctx.fillStyle = '#141a26'; ctx.fillRect(W / 2 - 70, 191, 140, 2);
+    ctx.fillStyle = '#7fb8ff'; ctx.fillRect(W / 2 - 70, 191, 140 * c.slowLeft / SLOW_TIME, 2);
   } else if (canSlow()) {
-    ctx.font = '500 9.5px Orbitron, monospace'; ctx.fillStyle = 'rgba(127,184,255,0.85)'; ctx.textAlign = 'center';
-    ctx.fillText(`${isTouch ? 'LENTO' : 'ESPACIO'}: CÁMARA LENTA 5 s`, W / 2, 178); ctx.textAlign = 'left';
+    txt(ctx, `${act('LENTO', 'ESPACIO')}: CÁMARA LENTA 5 s`, W / 2, 180, `500 10px ${FU}`, 'rgba(127,184,255,0.85)', 'center', 1.5);
   }
-  if (c.mode === 'air' && c.msg && !(!c.armed && keys.up)) {
-    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
-    ctx.fillText(c.msg, W / 2, 156); ctx.textAlign = 'left';
-  }
+  if (c.mode === 'air' && c.msg && !(!c.armed && keys.up)) banner(c.msg, 158, '#ff4a58');
 }
 
 function draw() {
@@ -718,32 +1159,100 @@ function draw() {
   // landing zone off screen
   const padSX = lvl().pad - camX;
   if (padSX + lvl().w / 2 < 0 && state.mode !== 'crashed') {
-    ctx.fillStyle = 'rgba(91,227,138,0.8)'; ctx.font = '500 9px Orbitron, monospace'; ctx.textAlign = 'left';
-    ctx.fillText(`◀ ZONA ${Math.max(0, Math.round((state.x - lvl().pad) / 10))} m`, 12, FLOOR - 14);
+    txt(ctx, `◀ ZONA ${Math.max(0, Math.round((state.x - lvl().pad) / 10))} m`, 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(91,227,138,0.85)', 'left', 1.5);
   }
   // arrow toward the ramp when it is off screen
   if (camX < -W) {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '500 9px Orbitron, monospace'; ctx.textAlign = 'right';
-    ctx.fillText(`RAMPA ${Math.round((190 - state.x) / 10)} m ▶`, W - 12, FLOOR - 14); ctx.textAlign = 'left';
+    txt(ctx, `RAMPA ${Math.round((EXIT_X - state.x) / 10)} m ▶`, W - 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(255,255,255,0.4)', 'right', 1.5);
   }
-  if (flash) { ctx.fillStyle = `rgba(255,40,50,${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
+  if (flash) { ctx.fillStyle = `rgba(255,42,58,${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
   drawHeader();
   drawHUD();
   drawOverlay();
 }
 
+// ---------- splash & menu backdrop: the car flying over a dark floor ----------
+const bgStars = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), a: 0.08 + Math.random() * 0.4 }));
+const bgPuffs = [];
+const bgCam = { cx: 0.5, cy: 0.42, hy: 0.62, s: 1 };
+function drawBg(now, dt) {
+  const w = innerWidth, h = innerHeight, t = now / 1000, b = bctx;
+  const wide = w >= 900 && h >= 560;
+  // where things sit: centred on the splash, beside the menu column on wide screens, above it on phones
+  const tgt = screen === 'splash' ? { cx: 0.5, cy: 0.42, hy: 0.62 }
+            : wide ? { cx: 0.68, cy: 0.44, hy: 0.64 } : { cx: 0.5, cy: 0.17, hy: 0.3 };
+  const ease = Math.min(1, dt * 2.5);
+  for (const k of ['cx', 'cy', 'hy']) bgCam[k] += (tgt[k] - bgCam[k]) * ease;
+  const hy = h * bgCam.hy;
+  b.fillStyle = '#000'; b.fillRect(0, 0, w, h);
+  for (const s of bgStars) if (s.y * h < hy) { b.fillStyle = `rgba(255,255,255,${s.a})`; b.fillRect(s.x * w, s.y * h, 1.2, 1.2); }
+  // red horizon glow
+  let g = b.createRadialGradient(w * bgCam.cx, hy, 0, w * bgCam.cx, hy, Math.max(w, h) * 0.55);
+  g.addColorStop(0, 'rgba(255,42,58,0.18)'); g.addColorStop(0.35, 'rgba(110,8,18,0.07)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  b.fillStyle = g; b.fillRect(0, 0, w, h);
+  g = b.createLinearGradient(0, 0, w, 0);
+  g.addColorStop(0, 'rgba(255,42,58,0)'); g.addColorStop(bgCam.cx, 'rgba(255,42,58,0.7)'); g.addColorStop(1, 'rgba(255,42,58,0)');
+  b.fillStyle = g; b.fillRect(0, hy, w, 1);
+  // floor grid rushing toward the viewer
+  b.strokeStyle = 'rgba(205,208,216,0.07)'; b.lineWidth = 1; b.beginPath();
+  const vx = w * bgCam.cx;
+  for (let i = -24; i <= 24; i++) { b.moveTo(vx + i * 10, hy); b.lineTo(vx + i * w * 0.14, h); }
+  const sp = (t * 0.55) % 1;
+  for (let k = 0; k < 16; k++) { const z = (k + sp) / 16, y = hy + (h - hy) * z * z; b.moveTo(0, y); b.lineTo(w, y); }
+  b.stroke();
+  // speed lines
+  b.strokeStyle = 'rgba(205,208,216,0.08)'; b.beginPath();
+  for (let i = 0; i < 18; i++) {
+    const y = (i * 0.137 + 0.05) % 1 * hy, x = w - ((t * (300 + i * 37) + i * 211) % (w + 300));
+    b.moveTo(x, y); b.lineTo(x + 60 + (i % 4) * 30, y);
+  }
+  b.stroke();
+  // the car: hovering on cold gas, gently pitching
+  const s = Math.max(1.3, Math.min(3.4, Math.min(w, h * 1.2) / 230));
+  const cx = w * bgCam.cx + Math.sin(t * 0.45) * w * 0.05, cy = h * bgCam.cy + Math.sin(t * 1.3) * h * 0.018;
+  const th = Math.sin(t * 0.8) * 0.1 - 0.04;
+  const cs = Math.cos(th), sn = Math.sin(th);
+  const at = (lx, ly) => [cx + (lx * cs - ly * sn) * s, cy + (lx * sn + ly * cs) * s];
+  if (Math.random() < 0.9) for (const lx of [-18, 18]) {
+    const [px, py] = at(lx, 11);
+    bgPuffs.push({ x: px, y: py, vx: -50 - Math.random() * 60, vy: 50 + Math.random() * 70, life: 0.7, r: 1.6 * s });
+  }
+  for (const p of bgPuffs) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += dt * 12 * s; }
+  while (bgPuffs.length && bgPuffs[0].life <= 0) bgPuffs.shift();
+  for (const p of bgPuffs) { b.fillStyle = `rgba(230,234,245,${p.life * 0.1})`; b.beginPath(); b.arc(p.x, p.y, p.r, 0, 7); b.fill(); }
+  // red tail-light streak
+  const [tx, ty] = at(-36, -2);
+  g = b.createLinearGradient(tx, ty, tx - w * 0.35, ty);
+  g.addColorStop(0, 'rgba(255,42,58,0.8)'); g.addColorStop(1, 'rgba(255,42,58,0)');
+  b.strokeStyle = g; b.lineWidth = 1.6 * s / 2; b.beginPath(); b.moveTo(tx, ty); b.lineTo(tx - w * 0.35, ty); b.stroke();
+  // reflection on the floor
+  b.save(); b.beginPath(); b.rect(0, hy, w, h - hy); b.clip();
+  b.globalAlpha = 0.13; b.translate(cx, 2 * hy - cy + (hy - cy) * 0.2); b.rotate(-th); b.scale(s, -s); paintCar(b);
+  b.restore();
+  b.save(); b.translate(cx, cy); b.rotate(th); b.scale(s, s); paintCar(b); b.restore();
+}
+
 // ---------- loop ----------
 reset(false);
+syncSoundLabels();
+refreshMenu();
+renderRank();
+setTimeout(initRanking, 0);
 let last = performance.now(), acc = 0;
 const DT = 1 / 120;
 function frame(t) {
   const real = Math.min(0.1, (t - last) / 1000); last = t;
-  if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
-  acc += real;
-  while (acc >= DT) { step(DT); acc -= DT; }
-  draw();
+  if (screen === 'game') {
+    if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
+    acc += real;
+    while (acc >= DT) { step(DT); acc -= DT; }
+    draw();
+    syncSuctionBtn();
+  } else {
+    if (screen === 'splash') stepSplash(t);
+    drawBg(t, real);
+  }
   updateAudio();
-  syncSuctionBtn();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
