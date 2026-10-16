@@ -85,11 +85,93 @@ const trackBand = offsetPath(14), trackSkirt = offsetPath(34),
 const stars = Array.from({ length: 300 }, () => ({ x: LEFT - 200 + Math.random() * (W - LEFT + 200), y: 150 + Math.random() * 700, a: Math.random() * 0.5 + 0.1 }));
 let camX = 0;
 
+// ---------- levels ----------
+// pad: landing zone centre (x) and width in px; wind: horizontal push in the air (px/s², + = toward the ramp)
+const LEVELS = [
+  { pad: -150, w: 220, gas: 100, wind: 0 },
+  { pad: -380, w: 170, gas: 100, wind: 0 },
+  { pad: -220, w: 130, gas: 80, wind: 0 },
+  { pad: -560, w: 130, gas: 90, wind: 30 },
+  { pad: -150, w: 110, gas: 75, wind: -35 },
+  { pad: -900, w: 110, gas: 100, wind: 0 },
+  { pad: -420, w: 90, gas: 65, wind: 45 },
+];
+const EXIT_X = 190;
+let level = 0, unlocked = 0;
+const lvl = () => LEVELS[level];
+const windStreaks = Array.from({ length: 28 }, () => ({ x: Math.random() * W, y: 160 + Math.random() * 520, len: 10 + Math.random() * 24 }));
+
+// ---------- sound (Web Audio, synthesized) ----------
+let AC = null, snd = null, muted = false;
+function ensureAudio() {
+  if (muted) return;
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  const master = AC.createGain(); master.gain.value = 0.7; master.connect(AC.destination);
+  const noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const hiss = (freq, q) => {
+    const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+    const g = AC.createGain(); g.gain.value = 0;
+    src.connect(f).connect(g).connect(master); src.start();
+    return g;
+  };
+  const motor = AC.createOscillator(); motor.type = 'sawtooth';
+  const mf = AC.createBiquadFilter(); mf.type = 'lowpass'; mf.frequency.value = 600;
+  const mg = AC.createGain(); mg.gain.value = 0;
+  motor.connect(mf).connect(mg).connect(master); motor.start();
+  const hum = AC.createOscillator(); hum.frequency.value = 70;
+  const hg = AC.createGain(); hg.gain.value = 0;
+  hum.connect(hg).connect(master); hum.start();
+  snd = { master, noiseBuf, main: hiss(900, 0.8), rcs: hiss(3800, 1.5), motor, mg, hg };
+}
+function setMuted(m) {
+  muted = m; save();
+  if (m) { if (AC) AC.suspend(); } else ensureAudio();
+}
+function updateAudio() {
+  if (!snd || muted) return;
+  const c = state, t = AC.currentTime, air = c.mode === 'air', hasGas = c.gas > 0, ramp = c.mode === 'ramp';
+  const set = (param, v) => param.setTargetAtTime(v, t, 0.03);
+  set(snd.main.gain, air && keys.up && c.armed && hasGas ? 0.35 : 0);
+  set(snd.rcs.gain, air && (keys.left || keys.right) && hasGas ? 0.18 : 0);
+  set(snd.mg.gain, ramp ? 0.05 + (keys.up ? 0.04 : 0) : 0);
+  set(snd.motor.frequency, 45 + Math.abs(c.v) * 0.4);
+  set(snd.hg.gain, ramp && c.suction && hasGas ? 0.05 : 0);
+}
+function sfx(kind) {
+  if (!snd || muted) return;
+  const t = AC.currentTime;
+  const burst = (dur, freq, vol) => {
+    const src = AC.createBufferSource(); src.buffer = snd.noiseBuf;
+    const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+    const g = AC.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(snd.master); src.start(t); src.stop(t + dur);
+  };
+  const tone = (f0, f1, dur, vol, type = 'sine', at = 0) => {
+    const o = AC.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
+    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t + at);
+    g.gain.exponentialRampToValueAtTime(vol, t + at + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + at + dur);
+    o.connect(g).connect(snd.master); o.start(t + at); o.stop(t + at + dur + 0.05);
+  };
+  if (kind === 'land') { burst(0.25, 400, 0.5); tone(120, 45, 0.3, 0.5); }
+  if (kind === 'crash') { burst(0.9, 2500, 0.9); burst(0.5, 300, 0.8); tone(90, 30, 0.6, 0.6, 'square'); }
+  if (kind === 'win') { tone(660, 660, 0.18, 0.18, 'triangle', 0.15); tone(990, 990, 0.35, 0.18, 'triangle', 0.32); }
+  if (kind === 'slip') tone(880, 440, 0.15, 0.12, 'square');
+}
+
 // ---------- input ----------
 const keys = { up: false, down: false, left: false, right: false };
 const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left',
                  ArrowRight: 'right', KeyD: 'right' };
 addEventListener('keydown', e => {
+  ensureAudio();
+  if (e.code === 'KeyM') setMuted(!muted);
+  const n = /^Digit([1-9])$/.exec(e.code);
+  if (n && +n[1] - 1 <= unlocked && state.mode !== 'ramp' && state.mode !== 'air') { level = +n[1] - 1; save(); reset(false); }
   if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; e.preventDefault(); onInput(); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) toggleSuction(); }
   if (e.code === 'KeyR' || (e.code === 'Enter' && (state.mode === 'landed' || state.mode === 'crashed'))) reset(true);
@@ -101,26 +183,47 @@ addEventListener('keyup', e => {
 const suctionBtn = document.querySelector('[data-k="space"]');
 function toggleSuction() { state.suction = !state.suction; syncSuctionBtn(); }
 function syncSuctionBtn() { suctionBtn.classList.toggle('on', state.suction); }
-suctionBtn.addEventListener('pointerdown', e => { e.preventDefault(); toggleSuction(); });
+suctionBtn.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); toggleSuction(); });
 document.querySelectorAll('.btn:not([data-k="space"])').forEach(b => {
   const k = b.dataset.k;
-  const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); onInput(); };
+  const on = e => { e.preventDefault(); ensureAudio(); keys[k] = true; b.classList.add('on'); onInput(); };
   const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); if (k === 'up') state.armed = true; };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
   b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
 });
-cv.addEventListener('pointerdown', () => { if (state.mode === 'landed' || state.mode === 'crashed') reset(true); });
+cv.addEventListener('pointerdown', e => {
+  ensureAudio();
+  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  if (x > W - 110 && y < 44) { setMuted(!muted); return; }
+  if (state.mode === 'landed' || state.mode === 'crashed') reset(true);
+});
 
 // ---------- state ----------
 let testNo = 1, best = 0;
-try { testNo = +localStorage.getItem('t47_test') || 1; best = +localStorage.getItem('t47_best') || 0; } catch (e) {}
-function save() { try { localStorage.setItem('t47_test', testNo); localStorage.setItem('t47_best', best); } catch (e) {} }
+try {
+  testNo = +localStorage.getItem('t47_test') || 1; best = +localStorage.getItem('t47_best') || 0;
+  unlocked = Math.min(LEVELS.length - 1, +localStorage.getItem('t47_unlocked') || 0);
+  level = Math.min(unlocked, +localStorage.getItem('t47_level') || 0);
+  muted = localStorage.getItem('t47_mute') === '1';
+} catch (e) {}
+function save() {
+  try {
+    localStorage.setItem('t47_test', testNo); localStorage.setItem('t47_best', best);
+    localStorage.setItem('t47_level', level); localStorage.setItem('t47_unlocked', unlocked);
+    localStorage.setItem('t47_mute', muted ? '1' : '0');
+  } catch (e) {}
+}
 
 let state, particles, trail, flash;
 function reset(next) {
-  if (next) { testNo++; save(); }
-  state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: 100,
+  if (next) {
+    testNo++;
+    if (state.passed) level = Math.min(level + 1, LEVELS.length - 1);
+    save();
+  }
+  state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: lvl().gas,
             exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
+            passed: false, onPad: false, miss: 0,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
   particles = []; trail = []; flash = 0; camX = 0;
   placeOnTrack();
@@ -164,6 +267,7 @@ function stepRamp(dt) {
   // normal force: N = v²k − g·n + suction ; walls & ceiling need some grip
   const N = c.v * c.v * p.k - G * p.ny + (sucking ? SUCTION : 0);
   const need = p.ny > -0.5 ? 0.2 * G : 0;
+  if (N < need && c.slip === 0) sfx('slip');
   c.slip = N < need ? c.slip + dt : 0;
   if (c.slip > 0.35) leaveTrack(p, 'SIN ADHERENCIA');
 
@@ -172,7 +276,7 @@ function stepRamp(dt) {
 
 function stepAir(dt) {
   const c = state;
-  let ax = 0, ay = G, al = 0;
+  let ax = lvl().wind, ay = G, al = 0;
   const ux = Math.sin(c.th), uy = -Math.cos(c.th);   // car's "roof" direction
   if (keys.up && c.armed && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt; c.use.up += dt; emit('main'); }
   if (keys.left && c.gas > 0) { al -= SPIN; c.gas -= 10 * dt; c.use.left += dt; emit('ccw'); }
@@ -202,16 +306,25 @@ function touchdown() {
   if (w > 2) r.push('GIRANDO');
   c.reasons = r;
   if (r.length) {
-    c.mode = 'crashed'; flash = 1;
+    c.mode = 'crashed'; flash = 1; sfx('crash');
     for (let i = 0; i < 60; i++) {
       const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 240;
       particles.push({ x: c.x, y: Math.min(c.y, FLOOR - 4), vx: Math.cos(a) * s + c.vx * 0.3, vy: -Math.abs(Math.sin(a) * s),
                        life: 1.4, max: 1.4, r: 1.5 + Math.random() * 2.5, col: Math.random() < 0.3 ? '255,60,70' : '230,230,235', g: true });
     }
   } else {
-    c.mode = 'landed';
-    c.score = Math.max(0, Math.round(1000 - ang * 25 - vy * 30 - vx * 15 + c.gas * 3));
-    if (c.score > best) { best = c.score; save(); }
+    c.mode = 'landed'; sfx('land');
+    const L = lvl(), off = Math.abs(c.x - L.pad);
+    c.onPad = off <= L.w / 2;
+    if (c.onPad) {
+      c.score = Math.max(0, Math.round(1000 - ang * 25 - vy * 30 - vx * 15 + c.gas * 3 + (1 - off / (L.w / 2)) * 300));
+      c.passed = true;
+      unlocked = Math.max(unlocked, Math.min(level + 1, LEVELS.length - 1));
+      if (c.score > best) best = c.score;
+      save(); sfx('win');
+    } else {
+      c.miss = (off - L.w / 2) / 10;   // metres from the nearest pad edge
+    }
     c.th = 0; c.w = 0; c.y = FLOOR - 11; c.vy = 0;
   }
 }
@@ -249,8 +362,13 @@ function step(dt) {
   }
   particles = particles.filter(p => p.life > 0);
   flash = Math.max(0, flash - dt * 2);
+  const wnd = lvl().wind;
+  if (wnd) for (const s of windStreaks) {
+    s.x += wnd * 5 * dt;
+    if (s.x > W + 40) s.x -= W + 80; else if (s.x < -40) s.x += W + 80;
+  }
   // keep the car at least 150px from the left edge of the screen
-  const target = Math.max(LEFT, Math.min(0, c.x - 150));
+  const target = c.mode === 'ready' || c.mode === 'ramp' ? 0 : Math.max(LEFT, Math.min(0, c.x - 150));
   camX += (target - camX) * Math.min(1, dt * 5);
 }
 
@@ -352,6 +470,58 @@ function drawReflection() {
   ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(LEFT - 400, FLOOR, W - LEFT + 400, 1);
 }
 
+function drawPad() {
+  const L = lvl(), x0 = L.pad - L.w / 2, x1 = L.pad + L.w / 2;
+  const g = ctx.createLinearGradient(0, FLOOR - 60, 0, FLOOR);
+  g.addColorStop(0, 'rgba(91,227,138,0)'); g.addColorStop(1, 'rgba(91,227,138,0.13)');
+  ctx.fillStyle = g; ctx.fillRect(x0, FLOOR - 60, L.w, 60);
+  ctx.save(); ctx.shadowColor = '#5be38a'; ctx.shadowBlur = 10; ctx.fillStyle = '#5be38a';
+  ctx.fillRect(x0, FLOOR - 2, L.w, 3);
+  ctx.fillRect(x0 - 1, FLOOR - 14, 2, 14); ctx.fillRect(x1 - 1, FLOOR - 14, 2, 14);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(91,227,138,0.85)'; ctx.font = '500 8px Orbitron, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('ZONA DE ATERRIZAJE', L.pad, FLOOR - 18);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+}
+
+// ballistic path with no thrusters: from the car in the air, or from the ramp exit at the current speed
+function predictPath() {
+  const c = state, L = lvl();
+  let x, y, vx, vy;
+  if (c.mode === 'air') { x = c.x; y = c.y; vx = c.vx; vy = c.vy; }
+  else if (c.mode === 'ramp' && c.s > P.length - 320) {
+    const e = P[P.length - 1]; x = e.x + e.nx * 11; y = e.y + e.ny * 11; vx = e.tx * c.v; vy = e.ty * c.v;
+  } else return null;
+  const pts = [[x, y]], dt = 1 / 40;
+  for (let i = 0; i < 320 && y < FLOOR - 11; i++) {
+    vx += L.wind * dt; vy += G * dt; vx *= 1 - 0.04 * dt;
+    x += vx * dt; y += vy * dt;
+    if (x < LEFT + 40) { x = LEFT + 40; vx = Math.abs(vx) * 0.4; }
+    pts.push([x, y]);
+  }
+  return pts;
+}
+function drawPrediction() {
+  const pts = predictPath(); if (!pts) return;
+  const L = lvl(), ex = pts[pts.length - 1][0];
+  const col = Math.abs(ex - L.pad) <= L.w / 2 ? '91,227,138' : '255,90,102';
+  ctx.save(); ctx.setLineDash([3, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${col},0.55)`;
+  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  ctx.setLineDash([]); ctx.strokeStyle = `rgba(${col},0.95)`; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ex - 6, FLOOR - 6); ctx.lineTo(ex + 6, FLOOR + 6); ctx.moveTo(ex + 6, FLOOR - 6); ctx.lineTo(ex - 6, FLOOR + 6);
+  ctx.stroke(); ctx.restore();
+}
+
+function drawWind() {
+  const wnd = lvl().wind; if (!wnd) return;
+  ctx.strokeStyle = 'rgba(200,210,230,0.16)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const s of windStreaks) { ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - Math.sign(wnd) * s.len, s.y); }
+  ctx.stroke();
+}
+
 function drawGround() {
   // distance marks every 10 m from the ramp exit, plus the far barrier
   ctx.font = '500 8px Orbitron, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -372,13 +542,20 @@ function drawHeader() {
   const c = state;
   ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f2f2';
   ctx.font = '700 15px Orbitron, monospace';
-  const head = c.mode === 'crashed' ? 'NOBODY SAW THE FAILURES.' : 'EVERYONE SAW THE SUCCESS.';
+  const head = c.mode === 'crashed' ? 'NOBODY SAW THE FAILURES.'
+             : c.mode === 'landed' && !c.onPad ? 'SO CLOSE.' : 'EVERYONE SAW THE SUCCESS.';
   spaced(head, W / 2, 62, 3.5);
   ctx.font = '500 11px Orbitron, monospace'; ctx.fillStyle = '#bbb';
   const n = String(testNo).padStart(2, '0');
   ctx.textAlign = 'right'; spaced('TEST', W / 2 - 4, 108, 4);
   ctx.textAlign = 'left'; ctx.font = '700 22px Orbitron, monospace'; ctx.fillStyle = '#fff';
   ctx.fillText(n, W / 2 + 22, 107);
+  const L = lvl(), wnd = L.wind / 10;
+  ctx.font = '500 8.5px Orbitron, monospace'; ctx.fillStyle = '#7d7d84'; ctx.textAlign = 'center';
+  ctx.fillText(`NIVEL ${level + 1}/${LEVELS.length}  ·  ZONA A ${Math.round((EXIT_X - L.pad) / 10)} m  ·  ` +
+               (wnd ? `VIENTO ${wnd > 0 ? '→' : '←'} ${Math.abs(wnd).toFixed(1)} m/s²` : 'SIN VIENTO'), W / 2, 132);
+  ctx.textAlign = 'right'; ctx.fillStyle = muted ? '#55555b' : '#9a9aa0';
+  ctx.fillText(muted ? 'SONIDO OFF' : 'SONIDO ON', W - 12, 20);
   ctx.textAlign = 'left';
 }
 
@@ -398,7 +575,7 @@ function drawHUD() {
   const rows = c.mode === 'ramp' || c.mode === 'ready'
     ? [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
        ['VELOCIDAD', `${(c.v / 10).toFixed(1)} m/s`, c.v / 480, '#ddd'],
-       ['SALIDA IDEAL', '< 15 m/s', 0, dim],
+       ['ZONA', `${Math.round((EXIT_X - lvl().pad) / 10)} m`, 0, '#5be38a'],
        ['SUCCIÓN', c.suction && c.gas > 0 ? 'ON' : 'OFF', c.suction ? 1 : 0, c.suction ? '#ff5a66' : dim]]
     : [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
        ['ÁNGULO', `${ang.toFixed(0)}°`, 1 - ang / 180, ang <= 12 ? ok : bad],
@@ -436,7 +613,7 @@ function drawHUD() {
 
   ctx.fillStyle = '#5a5a60'; ctx.font = '500 8.5px Orbitron, monospace';
   ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN ON/OFF', W / 2, 970);
-  ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO' : 'AIRE: ↑ PROPULSOR · ← → GIRO · R REINICIAR', W / 2, 986);
+  ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO' : 'AIRE: ↑ PROPULSOR · ← → GIRO · R REINICIAR · M SONIDO · 1-7 NIVEL', W / 2, 986);
   ctx.textAlign = 'left';
 }
 
@@ -451,22 +628,32 @@ function panel(lines, y0) {
 function drawOverlay() {
   const c = state, B = '700 13px Orbitron, monospace', S = '500 9.5px Orbitron, monospace';
   if (c.mode === 'ready') {
-    panel([['MISIÓN', B, '#fff'],
+    const L = lvl();
+    panel([[`NIVEL ${level + 1}: ZONA A ${Math.round((EXIT_X - L.pad) / 10)} m`, B, '#5be38a'],
            ['1. Subí la rampa (↑). La SUCCIÓN arranca', S, '#bbb'],
            ['   prendida (espacio la prende/apaga).', S, '#bbb'],
            ['2. Salís boca abajo: girá con ← →', S, '#bbb'],
            ['3. Frená la caída con ↑ (empuja', S, '#bbb'],
            ['   hacia donde apunta el techo).', S, '#bbb'],
            ['4. Aterrizá con las 4 ruedas:', S, '#bbb'],
-           ['   < 12°, < 12 m/s vertical.', S, '#bbb'],
+           ['   < 12°, < 12 m/s, dentro de la ZONA.', S, '#bbb'],
+           ['La línea punteada muestra dónde caés.', S, '#bbb'],
            ['PRESIONÁ ↑ PARA ARRANCAR', B, '#ff5a66']], 300);
+  } else if (c.mode === 'landed' && !c.onPad) {
+    const short = c.x > lvl().pad;   // the car flies left, so landing right of the pad means it fell short
+    panel([['AUTO INTACTO, FUERA DE ZONA', B, '#ffb347'],
+           [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m`, S, '#ddd'],
+           [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', S, '#bbb'],
+           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'R / ENTER: REINTENTAR', B, '#ff5a66']], 320);
   } else if (c.mode === 'landed') {
-    panel([['ATERRIZAJE LIMPIO', B, '#5be38a'],
+    const last = level === LEVELS.length - 1;
+    panel([['ATERRIZAJE EN LA ZONA', B, '#5be38a'],
            [`PUNTAJE  ${c.score}`, B, '#fff'],
            [`MEJOR    ${best}`, S, '#bbb'],
            [`Salida de rampa: ${(c.exitSpeed / 10).toFixed(1)} m/s`, S, '#bbb'],
            [`Gas restante: ${c.gas.toFixed(0)}%`, S, '#bbb'],
-           [isTouch ? 'TOCÁ PARA EL SIGUIENTE TEST' : 'R / ENTER: SIGUIENTE TEST', B, '#ff5a66']], 320);
+           [last ? '¡SUPERASTE LOS 7 NIVELES!' : `Desbloqueaste el NIVEL ${level + 2}`, S, '#5be38a'],
+           [isTouch ? 'TOCÁ PARA SEGUIR' : 'R / ENTER: SEGUIR', B, '#ff5a66']], 320);
   } else if (c.mode === 'crashed') {
     panel([['IMPACTO — AUTO DESTRUIDO', B, '#ff4a58'],
            ...c.reasons.map(r => ['· ' + r, S, '#ddd']),
@@ -474,13 +661,13 @@ function drawOverlay() {
            [isTouch ? 'TOCÁ PARA REINTENTAR' : 'R / ENTER: REINTENTAR', B, '#ff5a66']], 320);
   } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
-    ctx.fillText(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', W / 2, 140); ctx.textAlign = 'left';
+    ctx.fillText(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', W / 2, 156); ctx.textAlign = 'left';
   } else if (c.mode === 'air' && !c.armed && keys.up) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ddd'; ctx.textAlign = 'center';
-    ctx.fillText('SOLTÁ ↑ Y VOLVÉ A APRETAR PARA EL PROPULSOR', W / 2, 140); ctx.textAlign = 'left';
+    ctx.fillText('SOLTÁ ↑ Y VOLVÉ A APRETAR PARA EL PROPULSOR', W / 2, 156); ctx.textAlign = 'left';
   } else if (c.mode === 'air' && c.msg) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
-    ctx.fillText(c.msg, W / 2, 140); ctx.textAlign = 'left';
+    ctx.fillText(c.msg, W / 2, 156); ctx.textAlign = 'left';
   }
 }
 
@@ -491,8 +678,17 @@ function draw() {
   drawScaffold();
   drawReflection();
   drawGround();
+  drawPad();
+  drawPrediction();
   drawWorld(1);
   ctx.restore();
+  drawWind();
+  // landing zone off screen
+  const padSX = lvl().pad - camX;
+  if (padSX + lvl().w / 2 < 0 && state.mode !== 'crashed') {
+    ctx.fillStyle = 'rgba(91,227,138,0.8)'; ctx.font = '500 9px Orbitron, monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`◀ ZONA ${Math.max(0, Math.round((state.x - lvl().pad) / 10))} m`, 12, FLOOR - 14);
+  }
   // arrow toward the ramp when it is off screen
   if (camX < -W) {
     ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = '500 9px Orbitron, monospace'; ctx.textAlign = 'right';
@@ -512,6 +708,7 @@ function frame(t) {
   acc += Math.min(0.1, (t - last) / 1000); last = t;
   while (acc >= DT) { step(DT); acc -= DT; }
   draw();
+  updateAudio();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
