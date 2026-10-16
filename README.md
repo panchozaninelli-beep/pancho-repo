@@ -13,7 +13,8 @@ Hay 7 niveles: la zona queda más lejos o más chica, hay menos gas y aparece vi
 | Rampa | Espacio          | Prende/apaga la succión (arranca prendida; necesaria en pared y techo, gasta gas)|
 | Aire  | ↑ / W            | Propulsor principal (empuja hacia el techo del auto) |
 | Aire  | ← → / A D        | Propulsores de giro                            |
-| —     | R / Enter        | Reiniciar / siguiente test                     |
+| Aire  | Espacio          | Cámara lenta 5 s, una vez por intento (solo niveles 1–3) |
+| —     | Espacio / R      | Reiniciar / siguiente test                     |
 | —     | M                | Sonido on/off                                  |
 | —     | 1–7              | Elegir un nivel ya desbloqueado                |
 

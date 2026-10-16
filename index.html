@@ -97,6 +97,7 @@ const LEVELS = [
   { pad: -420, w: 90, gas: 65, wind: 45 },
 ];
 const EXIT_X = 190;
+const EASY_LEVELS = 3, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-3 get one 5 s slow-motion assist per attempt
 let level = 0, unlocked = 0;
 const lvl = () => LEVELS[level];
 const windStreaks = Array.from({ length: 28 }, () => ({ x: Math.random() * W, y: 160 + Math.random() * 520, len: 10 + Math.random() * 24 }));
@@ -161,6 +162,7 @@ function sfx(kind) {
   if (kind === 'crash') { burst(0.9, 2500, 0.9); burst(0.5, 300, 0.8); tone(90, 30, 0.6, 0.6, 'square'); }
   if (kind === 'win') { tone(660, 660, 0.18, 0.18, 'triangle', 0.15); tone(990, 990, 0.35, 0.18, 'triangle', 0.32); }
   if (kind === 'slip') tone(880, 440, 0.15, 0.12, 'square');
+  if (kind === 'slow') tone(700, 180, 0.6, 0.2, 'triangle');
 }
 
 // ---------- input ----------
@@ -173,7 +175,7 @@ addEventListener('keydown', e => {
   const n = /^Digit([1-9])$/.exec(e.code);
   if (n && +n[1] - 1 <= unlocked && state.mode !== 'ramp' && state.mode !== 'air') { level = +n[1] - 1; save(); reset(false); }
   if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; e.preventDefault(); onInput(); }
-  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) toggleSuction(); }
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) spaceAction(); }
   if (e.code === 'KeyR' || (e.code === 'Enter' && (state.mode === 'landed' || state.mode === 'crashed'))) reset(true);
 });
 addEventListener('keyup', e => {
@@ -182,8 +184,21 @@ addEventListener('keyup', e => {
 });
 const suctionBtn = document.querySelector('[data-k="space"]');
 function toggleSuction() { state.suction = !state.suction; syncSuctionBtn(); }
-function syncSuctionBtn() { suctionBtn.classList.toggle('on', state.suction); }
-suctionBtn.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); toggleSuction(); });
+const canSlow = () => state.mode === 'air' && level < EASY_LEVELS && !state.slowUsed;
+// space: restart when the attempt is over, slow motion in the air (easy levels), suction toggle otherwise
+function spaceAction() {
+  const c = state;
+  if (c.mode === 'landed' || c.mode === 'crashed') reset(true);
+  else if (canSlow()) { c.slowUsed = true; c.slowLeft = SLOW_TIME; sfx('slow'); }
+  else if (c.mode === 'ready' || c.mode === 'ramp') toggleSuction();
+}
+function syncSuctionBtn() {
+  const c = state, over = c.mode === 'landed' || c.mode === 'crashed';
+  const label = over ? 'REINICIAR' : c.mode === 'air' ? (canSlow() || c.slowLeft > 0 ? 'LENTO' : '—') : 'SUCCIÓN';
+  if (suctionBtn.textContent !== label) suctionBtn.textContent = label;
+  suctionBtn.classList.toggle('on', c.mode === 'air' ? c.slowLeft > 0 : !over && c.suction);
+}
+suctionBtn.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); spaceAction(); });
 document.querySelectorAll('.btn:not([data-k="space"])').forEach(b => {
   const k = b.dataset.k;
   const on = e => { e.preventDefault(); ensureAudio(); keys[k] = true; b.classList.add('on'); onInput(); };
@@ -223,7 +238,7 @@ function reset(next) {
   }
   state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: lvl().gas,
             exitSpeed: null, msg: '', reasons: [], score: 0, suction: true, slip: 0, armed: true,
-            passed: false, onPad: false, miss: 0,
+            passed: false, onPad: false, miss: 0, slowUsed: false, slowLeft: 0,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
   particles = []; trail = []; flash = 0; camX = 0;
   placeOnTrack();
@@ -298,6 +313,7 @@ function stepAir(dt) {
 
 function touchdown() {
   const c = state, ang = Math.abs(norm(c.th)) * 180 / Math.PI;
+  c.slowLeft = 0;
   const vy = c.vy / 10, vx = Math.abs(c.vx) / 10, w = Math.abs(c.w);
   const r = [];
   if (ang > 12) r.push(ang > 90 ? 'CAYÓ DE TECHO' : `INCLINADO ${ang.toFixed(0)}°`);
@@ -612,8 +628,9 @@ function drawHUD() {
   ctx.fillStyle = dim; ctx.textAlign = 'center'; ctx.fillText('ACTITUD', cx, cy + R + 12);
 
   ctx.fillStyle = '#5a5a60'; ctx.font = '500 8.5px Orbitron, monospace';
-  ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN ON/OFF', W / 2, 970);
-  ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO' : 'AIRE: ↑ PROPULSOR · ← → GIRO · R REINICIAR · M SONIDO · 1-7 NIVEL', W / 2, 986);
+  ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN ON/OFF', W / 2, 958);
+  ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO · LENTO (NIV. 1-3)' : 'AIRE: ↑ PROPULSOR · ← → GIRO · ESPACIO CÁMARA LENTA (NIV. 1-3)', W / 2, 972);
+  ctx.fillText(isTouch ? 'REINICIAR: TOCÁ LA PANTALLA' : 'ESPACIO / R REINICIAR · M SONIDO · 1-7 NIVEL', W / 2, 986);
   ctx.textAlign = 'left';
 }
 
@@ -638,13 +655,14 @@ function drawOverlay() {
            ['4. Aterrizá con las 4 ruedas:', S, '#bbb'],
            ['   < 12°, < 12 m/s, dentro de la ZONA.', S, '#bbb'],
            ['La línea punteada muestra dónde caés.', S, '#bbb'],
+           ...(level < EASY_LEVELS ? [[`AYUDA: ${isTouch ? 'LENTO' : 'ESPACIO'} en el aire = cámara lenta 5 s`, S, '#7fb8ff']] : []),
            ['PRESIONÁ ↑ PARA ARRANCAR', B, '#ff5a66']], 300);
   } else if (c.mode === 'landed' && !c.onPad) {
     const short = c.x > lvl().pad;   // the car flies left, so landing right of the pad means it fell short
     panel([['AUTO INTACTO, FUERA DE ZONA', B, '#ffb347'],
            [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m`, S, '#ddd'],
            [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', S, '#bbb'],
-           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'R / ENTER: REINTENTAR', B, '#ff5a66']], 320);
+           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'ESPACIO: REINTENTAR', B, '#ff5a66']], 320);
   } else if (c.mode === 'landed') {
     const last = level === LEVELS.length - 1;
     panel([['ATERRIZAJE EN LA ZONA', B, '#5be38a'],
@@ -653,19 +671,31 @@ function drawOverlay() {
            [`Salida de rampa: ${(c.exitSpeed / 10).toFixed(1)} m/s`, S, '#bbb'],
            [`Gas restante: ${c.gas.toFixed(0)}%`, S, '#bbb'],
            [last ? '¡SUPERASTE LOS 7 NIVELES!' : `Desbloqueaste el NIVEL ${level + 2}`, S, '#5be38a'],
-           [isTouch ? 'TOCÁ PARA SEGUIR' : 'R / ENTER: SEGUIR', B, '#ff5a66']], 320);
+           [isTouch ? 'TOCÁ PARA SEGUIR' : 'ESPACIO: SEGUIR', B, '#ff5a66']], 320);
   } else if (c.mode === 'crashed') {
     panel([['IMPACTO — AUTO DESTRUIDO', B, '#ff4a58'],
            ...c.reasons.map(r => ['· ' + r, S, '#ddd']),
            ...(c.msg ? [['· Se despegó: ' + c.msg, S, '#ddd']] : []),
-           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'R / ENTER: REINTENTAR', B, '#ff5a66']], 320);
+           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'ESPACIO: REINTENTAR', B, '#ff5a66']], 320);
   } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
     ctx.fillText(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', W / 2, 156); ctx.textAlign = 'left';
   } else if (c.mode === 'air' && !c.armed && keys.up) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ddd'; ctx.textAlign = 'center';
     ctx.fillText('SOLTÁ ↑ Y VOLVÉ A APRETAR PARA EL PROPULSOR', W / 2, 156); ctx.textAlign = 'left';
-  } else if (c.mode === 'air' && c.msg) {
+  }
+  if (c.slowLeft > 0) {
+    ctx.fillStyle = 'rgba(80,140,255,0.07)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#7fb8ff'; ctx.textAlign = 'center';
+    ctx.fillText(`CÁMARA LENTA  ${c.slowLeft.toFixed(1)} s`, W / 2, 178);
+    ctx.fillStyle = '#1c2230'; ctx.fillRect(W / 2 - 70, 188, 140, 3);
+    ctx.fillStyle = '#7fb8ff'; ctx.fillRect(W / 2 - 70, 188, 140 * c.slowLeft / SLOW_TIME, 3);
+    ctx.textAlign = 'left';
+  } else if (canSlow()) {
+    ctx.font = '500 9.5px Orbitron, monospace'; ctx.fillStyle = 'rgba(127,184,255,0.85)'; ctx.textAlign = 'center';
+    ctx.fillText(`${isTouch ? 'LENTO' : 'ESPACIO'}: CÁMARA LENTA 5 s`, W / 2, 178); ctx.textAlign = 'left';
+  }
+  if (c.mode === 'air' && c.msg && !(!c.armed && keys.up)) {
     ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
     ctx.fillText(c.msg, W / 2, 156); ctx.textAlign = 'left';
   }
@@ -705,10 +735,13 @@ reset(false);
 let last = performance.now(), acc = 0;
 const DT = 1 / 120;
 function frame(t) {
-  acc += Math.min(0.1, (t - last) / 1000); last = t;
+  const real = Math.min(0.1, (t - last) / 1000); last = t;
+  if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
+  acc += real * (state.slowLeft > 0 ? SLOWMO : 1);
   while (acc >= DT) { step(DT); acc -= DT; }
   draw();
   updateAudio();
+  syncSuctionBtn();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
