@@ -58,6 +58,8 @@
     padding: 12px 14px; border: 1px solid var(--line-strong); background: rgba(8, 8, 10, 0.75); user-select: text; -webkit-user-select: text; }
   .field input::placeholder { color: var(--silver-faint); }
   .field input:focus { border-color: var(--red); }
+  .field input[aria-invalid="true"] { border-color: var(--red); }
+  .field-err { margin: 0; font: 500 12px/1.4 var(--f-ui); letter-spacing: 0.04em; color: #ff6b77; }
   .primary { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: 18px 20px; background: var(--red); color: #000; font: 400 18px var(--f-display); letter-spacing: 0.3em;
     box-shadow: 0 14px 40px -12px rgba(255, 42, 58, 0.75); transition: transform 0.15s ease, box-shadow 0.15s ease; }
@@ -144,7 +146,8 @@
     <p class="eyebrow">SUCCIÓN MULTIMODO · GAS FRÍO</p>
     <h1 class="title"><span class="t1">TEST</span><span class="t2">47</span></h1>
     <p class="tag">Subí la rampa con succión, salí boca abajo y aterrizá con las cuatro ruedas usando gas frío.</p>
-    <label class="field"><span>PILOTO</span><input id="pilot" maxlength="14" autocomplete="off" spellcheck="false" placeholder="TU NOMBRE"></label>
+    <label class="field"><span>PILOTO</span><input id="pilot" maxlength="14" autocomplete="off" spellcheck="false" placeholder="TU NOMBRE" aria-describedby="pilotErr">
+      <p class="field-err" id="pilotErr" hidden></p></label>
     <button class="primary" id="startBtn"><span id="startLabel">START</span><small id="startSub"></small></button>
     <div class="row">
       <button class="ghost" id="levelsBtn">NIVELES</button>
@@ -368,7 +371,7 @@ const totalPoints = () => Object.values(bests).reduce((a, b) => a + b, 0);
 const levelsPassed = () => Object.keys(bests).length;
 
 // ---------- ranking (shared db when the page runs as a claude.ai artifact) ----------
-const rank = { db: null, uid: null, rows: [], live: false, readOnly: false, lastSent: '' };
+const rank = { db: null, uid: null, rows: [], live: false, readOnly: false, lastSent: '', owner: false };
 let writing = Promise.resolve();
 const cleanName = s => String(s || '').toUpperCase().replace(/[^A-Z0-9ÁÉÍÓÚÜÑ _.\-]/g, '').trim().slice(0, 14);
 async function initRanking() {
@@ -379,6 +382,7 @@ async function initRanking() {
     if (!db) { renderRank(); refreshMenu(); return; }
     rank.db = db;
     rank.uid = user ? await user.id() : null;
+    rank.owner = user ? await user.isOwner() : false;
     if (rank.uid) {
       const mine = await db.doc('scores/' + rank.uid).get().catch(() => null);
       if (mine && mine.exists) {
@@ -410,10 +414,33 @@ function submitScore() {
       if (!e || e.code !== 'unavailable') { rank.readOnly = true; renderRank(); }
     });
 }
+// one place per name: rows sharing a name collapse into the one with the most points
+function board() {
+  const byName = new Map();
+  for (const r of rank.rows) {
+    const n = cleanName(r.name) || 'PILOTO', cur = byName.get(n);
+    if (!cur) byName.set(n, { ...r, name: n, ids: [r.id] });
+    else {
+      cur.ids.push(r.id);
+      if ((r.total || 0) > (cur.total || 0)) Object.assign(cur, { total: r.total, passed: r.passed });
+    }
+  }
+  return [...byName.values()].sort((a, b) => (b.total || 0) - (a.total || 0));
+}
 function myRank() {
   if (!rank.live || !rank.uid) return null;
-  const i = rank.rows.findIndex(r => r.id === rank.uid);
+  const i = board().findIndex(r => r.ids.includes(rank.uid));
   return i < 0 ? null : i + 1;
+}
+// a name already on the board belongs to whoever holds it; the game's owner may use any name
+function nameTaken(n) {
+  if (!n || rank.owner) return false;
+  return rank.rows.some(r => cleanName(r.name) === n && r.id !== rank.uid);
+}
+function showNameError(msg) {
+  const e = $('pilotErr'), i = $('pilot');
+  e.hidden = !msg; e.textContent = msg || '';
+  i.setAttribute('aria-invalid', msg ? 'true' : 'false');
 }
 function renderRank() {
   const list = $('rankList'), meta = $('rankMeta'), note = $('rankNote');
@@ -427,9 +454,10 @@ function renderRank() {
   };
   note.hidden = true;
   if (rank.live) {
-    meta.textContent = `TOP MUNDIAL · ${rank.rows.length} ${rank.rows.length === 1 ? 'PILOTO' : 'PILOTOS'} · SUMA DEL MEJOR PUNTAJE DE CADA NIVEL`;
-    rank.rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), cleanName(r.name) || 'PILOTO', `${r.passed || 0}/7`, (r.total || 0).toLocaleString('es-AR'), r.id === rank.uid));
-    if (!rank.rows.length) {
+    const rows = board();
+    meta.textContent = `TOP MUNDIAL · ${rows.length} ${rows.length === 1 ? 'PILOTO' : 'PILOTOS'} · SUMA DEL MEJOR PUNTAJE DE CADA NIVEL`;
+    rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), r.name, `${r.passed || 0}/7`, (r.total || 0).toLocaleString('es-AR'), r.ids.includes(rank.uid)));
+    if (!rows.length) {
       const li = document.createElement('li'); li.className = 'empty';
       li.textContent = 'Todavía no hay pilotos. Superá el nivel 1 y quedás primero.'; list.appendChild(li);
     } else if (!myRank() && totalPoints() > 0) {
@@ -532,6 +560,12 @@ function startGame(lv) {
   if (lv != null) { level = lv; }
   const name = cleanName($('pilot').value) || pilotName || 'PILOTO ' + (100 + Math.floor(Math.random() * 900));
   $('pilot').value = name;
+  if (nameTaken(name)) {
+    showNameError(`"${name}" ya está en el ranking. Elegí otro nombre.`);
+    if (screen !== 'menu') goMenu();
+    closeSheets(); $('pilot').focus(); return;
+  }
+  showNameError('');
   if (name !== pilotName) { pilotName = name; save(); submitScore(); }
   store.set('t47_played', '1');
   closeSheets();
@@ -581,8 +615,11 @@ $('menuBtn').addEventListener('click', e => { e.stopPropagation(); goMenu(); });
 $('pilot').addEventListener('change', () => {
   const n = cleanName($('pilot').value);
   $('pilot').value = n;
+  if (nameTaken(n)) { showNameError(`"${n}" ya está en el ranking. Elegí otro nombre.`); return; }
+  showNameError('');
   if (n && n !== pilotName) { pilotName = n; save(); submitScore(); }
 });
+$('pilot').addEventListener('input', () => showNameError(''));
 
 // splash: real font loading plus a minimum time; returning players get a short one
 const splash = { t0: performance.now(), min: store.get('t47_seen') ? 700 : 2600, fonts: false, ready: false };
