@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Test 47</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#ddd;font-family:Orbitron,monospace;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+  #wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  canvas{display:block;background:#000}
+  #pad{display:none;gap:8px;padding:8px 0 14px}
+  body.touch #pad{display:flex}
+  .btn{width:60px;height:56px;border:1px solid #444;border-radius:12px;background:#111;color:#eee;font:700 18px Orbitron,monospace;display:flex;align-items:center;justify-content:center}
+  .btn.on{background:#3a0d10;border-color:#ff3b4a;color:#fff}
+  .btn.wide{width:84px;font-size:10px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="pad">
+    <div class="btn" data-k="left">⟲</div>
+    <div class="btn" data-k="down">▼</div>
+    <div class="btn" data-k="up">▲</div>
+    <div class="btn" data-k="right">⟳</div>
+    <div class="btn wide" data-k="space">SUCCIÓN</div>
+  </div>
+</div>
+<script>
+// ---------- setup ----------
+const W = 460, H = 1000, FLOOR = 700, G = 160;      // world units: px, px/s, 10 px = 1 m
+const THRUST = 330, SPIN = 7, SUCTION = 1.7 * G;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const isTouch = matchMedia('(pointer:coarse)').matches;
+if (isTouch) document.body.classList.add('touch');
+
+function resize() {
+  const availH = innerHeight - (isTouch ? 80 : 0);
+  const s = Math.min(innerWidth / W, availH / H);
+  const dpr = devicePixelRatio || 1;
+  cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
+  cv.width = Math.round(W * s * dpr); cv.height = Math.round(H * s * dpr);
+  ctx.setTransform(s * dpr, 0, 0, s * dpr, 0, 0);
+}
+addEventListener('resize', resize); resize();
+
+// ---------- track: sampled every 1px along the riding surface ----------
+// n = surface normal pointing toward the car, k = curvature
+const P = [];
+function addLine(x0, y0, x1, y1, nx, ny) {
+  const L = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(L);
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    P.push({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, tx: (x1 - x0) / L, ty: (y1 - y0) / L, nx, ny, k: 0 });
+  }
+}
+function addArc(cx, cy, R, a0, a1) {
+  const n = Math.ceil(Math.abs(a1 - a0) * R), d = Math.sign(a1 - a0);
+  for (let i = 0; i < n; i++) {
+    const a = a0 + (a1 - a0) * i / n;
+    P.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), tx: -Math.sin(a) * d, ty: Math.cos(a) * d,
+             nx: -Math.cos(a), ny: -Math.sin(a), k: 1 / R });
+  }
+}
+addLine(40, FLOOR, 280, FLOOR, 0, -1);
+addArc(280, 560, 140, Math.PI / 2, 0);
+addLine(420, 560, 420, 340, -1, 0);
+addArc(280, 340, 140, 0, -Math.PI / 2);
+addLine(280, 200, 190, 200, 0, 1);
+const TRACK_START = 120; // the ramp piece begins at x=160; before that the car rolls on the floor
+
+function offsetPath(o) {
+  const p = new Path2D();
+  for (let i = TRACK_START; i < P.length; i++) {
+    const q = P[i], x = q.x - q.nx * o, y = q.y - q.ny * o;
+    i === TRACK_START ? p.moveTo(x, y) : p.lineTo(x, y);
+  }
+  return p;
+}
+const trackBand = offsetPath(14), trackSkirt = offsetPath(34),
+      edgeIn = offsetPath(1.5), edgeOut = offsetPath(26.5), centerLine = offsetPath(14);
+
+const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: 150 + Math.random() * 700, a: Math.random() * 0.5 + 0.1 }));
+
+// ---------- input ----------
+const keys = { up: false, down: false, left: false, right: false, space: false };
+const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left',
+                 ArrowRight: 'right', KeyD: 'right', Space: 'space' };
+addEventListener('keydown', e => {
+  if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = true; e.preventDefault(); onInput(); }
+  if (e.code === 'KeyR' || (e.code === 'Enter' && (state.mode === 'landed' || state.mode === 'crashed'))) reset(true);
+});
+addEventListener('keyup', e => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
+document.querySelectorAll('.btn').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); onInput(); };
+  const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
+  b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+});
+cv.addEventListener('pointerdown', () => { if (state.mode === 'landed' || state.mode === 'crashed') reset(true); });
+
+// ---------- state ----------
+let testNo = 1, best = 0;
+try { testNo = +localStorage.getItem('t47_test') || 1; best = +localStorage.getItem('t47_best') || 0; } catch (e) {}
+function save() { try { localStorage.setItem('t47_test', testNo); localStorage.setItem('t47_best', best); } catch (e) {} }
+
+let state, particles, trail, flash;
+function reset(next) {
+  if (next) { testNo++; save(); }
+  state = { mode: 'ready', s: 0, v: 0, x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, gas: 100,
+            exitSpeed: null, msg: '', reasons: [], score: 0,
+            use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
+  particles = []; trail = []; flash = 0;
+  placeOnTrack();
+}
+function onInput() { if (state.mode === 'ready' && keys.up) state.mode = 'ramp'; }
+
+function placeOnTrack() {
+  const p = P[Math.min(P.length - 1, Math.max(0, Math.floor(state.s)))];
+  state.x = p.x + p.nx * 11; state.y = p.y + p.ny * 11;
+  state.th = Math.atan2(p.nx, -p.ny);
+  return p;
+}
+const norm = a => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+
+function leaveTrack(p, why) {
+  const c = state;
+  c.vx = p.tx * c.v; c.vy = p.ty * c.v;
+  c.w = -c.v * p.k;           // carry the turn rate of the curve
+  c.exitSpeed = Math.abs(c.v);
+  c.mode = 'air'; c.msg = why || '';
+}
+
+// ---------- physics ----------
+function stepRamp(dt) {
+  const c = state, p0 = P[Math.min(P.length - 1, Math.floor(c.s))];
+  let a = G * p0.ty - 0.15 * c.v;
+  if (keys.up) a += 260;
+  if (keys.down && c.v > 0) a -= 320;
+  c.v = Math.min(480, c.v + a * dt);
+  c.s += c.v * dt;
+  if (c.s < 0) { c.s = 0; c.v = Math.max(0, c.v); }
+  if (c.s >= P.length - 1) { leaveTrack(P[P.length - 1]); return; }
+
+  const sucking = keys.space && c.gas > 0;
+  if (sucking) { c.gas -= 4 * dt; c.use.space += dt; }
+  if (keys.up) c.use.up += dt;
+  if (keys.down) c.use.down += dt;
+
+  const p = placeOnTrack();
+  // normal force: N = v²k − g·n + suction ; walls & ceiling need some grip
+  const N = c.v * c.v * p.k - G * p.ny + (sucking ? SUCTION : 0);
+  const need = p.ny > -0.5 ? 0.2 * G : 0;
+  if (N < need) leaveTrack(p, 'SIN ADHERENCIA');
+
+  trail.push(tailPos()); if (trail.length > 30) trail.shift();
+}
+
+function stepAir(dt) {
+  const c = state;
+  let ax = 0, ay = G, al = 0;
+  const ux = Math.sin(c.th), uy = -Math.cos(c.th);   // car's "roof" direction
+  if (keys.up && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt; c.use.up += dt; emit('main'); }
+  if (keys.left && c.gas > 0) { al -= SPIN; c.gas -= 10 * dt; c.use.left += dt; emit('ccw'); }
+  if (keys.right && c.gas > 0) { al += SPIN; c.gas -= 10 * dt; c.use.right += dt; emit('cw'); }
+  c.gas = Math.max(0, c.gas);
+  c.w += al * dt; c.w *= 1 - 0.35 * dt;
+  c.vx += ax * dt; c.vy += ay * dt; c.vx *= 1 - 0.04 * dt;
+  c.x += c.vx * dt; c.y += c.vy * dt; c.th += c.w * dt;
+  if (c.x < 40) { c.x = 40; c.vx = Math.abs(c.vx) * 0.4; }
+  if (c.x > W - 40) { c.x = W - 40; c.vx = -Math.abs(c.vx) * 0.4; }
+  trail.push(tailPos()); if (trail.length > 30) trail.shift();
+
+  // contact with the floor
+  const pts = [[-23, 11], [23, 11], [-36, 0], [36, 0], [-12, -15], [12, -15]];
+  const cs = Math.cos(c.th), sn = Math.sin(c.th);
+  const low = Math.max(...pts.map(([lx, ly]) => c.y + lx * sn + ly * cs));
+  if (low >= FLOOR) touchdown();
+}
+
+function touchdown() {
+  const c = state, ang = Math.abs(norm(c.th)) * 180 / Math.PI;
+  const vy = c.vy / 10, vx = Math.abs(c.vx) / 10, w = Math.abs(c.w);
+  const r = [];
+  if (ang > 12) r.push(ang > 90 ? 'CAYÓ DE TECHO' : `INCLINADO ${ang.toFixed(0)}°`);
+  if (vy > 12) r.push(`IMPACTO ${vy.toFixed(1)} m/s`);
+  if (vx > 13) r.push(`DERRAPE ${vx.toFixed(1)} m/s`);
+  if (w > 2) r.push('GIRANDO');
+  c.reasons = r;
+  if (r.length) {
+    c.mode = 'crashed'; flash = 1;
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 240;
+      particles.push({ x: c.x, y: Math.min(c.y, FLOOR - 4), vx: Math.cos(a) * s + c.vx * 0.3, vy: -Math.abs(Math.sin(a) * s),
+                       life: 1.4, max: 1.4, r: 1.5 + Math.random() * 2.5, col: Math.random() < 0.3 ? '255,60,70' : '230,230,235', g: true });
+    }
+  } else {
+    c.mode = 'landed';
+    c.score = Math.max(0, Math.round(1000 - ang * 25 - vy * 30 - vx * 15 + c.gas * 3));
+    if (c.score > best) { best = c.score; save(); }
+    c.th = 0; c.w = 0; c.y = FLOOR - 11; c.vy = 0;
+  }
+}
+
+function tailPos() {
+  const c = state;
+  return { x: c.x + Math.cos(c.th) * -36 - Math.sin(c.th) * -2, y: c.y + Math.sin(c.th) * -36 + Math.cos(c.th) * -2 };
+}
+function local(lx, ly) {
+  const c = state, cs = Math.cos(c.th), sn = Math.sin(c.th);
+  return [c.x + lx * cs - ly * sn, c.y + lx * sn + ly * cs];
+}
+function emit(kind) {
+  const c = state, cs = Math.cos(c.th), sn = Math.sin(c.th);
+  const spawn = (lx, ly, dx, dy) => {
+    const [x, y] = local(lx, ly), s = 140 + Math.random() * 80;
+    const wx = dx * cs - dy * sn, wy = dx * sn + dy * cs;
+    particles.push({ x, y, vx: c.vx + wx * s + (Math.random() - .5) * 40, vy: c.vy + wy * s + (Math.random() - .5) * 40,
+                     life: 0.45, max: 0.45, r: 2 + Math.random() * 2, col: '235,240,255' });
+  };
+  if (kind === 'main') { spawn(-18, 11, 0, 1); spawn(18, 11, 0, 1); }
+  if (kind === 'cw') { spawn(34, -6, 0, -1); spawn(-34, 6, 0, 1); }
+  if (kind === 'ccw') { spawn(34, 6, 0, 1); spawn(-34, -6, 0, -1); }
+}
+
+function step(dt) {
+  const c = state;
+  if (c.mode === 'ramp') stepRamp(dt);
+  else if (c.mode === 'air') stepAir(dt);
+  else if (trail.length) trail.shift();
+  for (const p of particles) {
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - 2 * dt; p.vy *= 1 - 2 * dt;
+    if (p.g) { p.vy += G * 2 * dt; if (p.y > FLOOR) { p.y = FLOOR; p.vy *= -0.3; } }
+    p.r += dt * (p.g ? 0 : 14);
+  }
+  particles = particles.filter(p => p.life > 0);
+  flash = Math.max(0, flash - dt * 2);
+}
+
+// ---------- drawing ----------
+function spaced(text, x, y, sp) {
+  let w = 0; for (const ch of text) w += ctx.measureText(ch).width + sp; w -= sp;
+  let cx = x - w / 2;
+  for (const ch of text) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + sp; }
+}
+
+function drawBackground() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(270, 560, 10, 270, 560, 330);
+  g.addColorStop(0, 'rgba(60,60,64,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 150, W, 700);
+  ctx.fillStyle = '#070708'; ctx.fillRect(0, 460, W, FLOOR - 460);  // far horizon band
+  for (const s of stars) { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fillRect(s.x, s.y, 1.2, 1.2); }
+}
+
+function drawScaffold() {
+  ctx.strokeStyle = 'rgba(210,210,215,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.rect(190, 152, W - 190, 22);
+  for (let x = 200; x < W; x += 22) { ctx.moveTo(x, 152); ctx.lineTo(x + 20, 174); }
+  for (const x of [438, 456]) { ctx.moveTo(x, 174); ctx.lineTo(x, FLOOR + 30); }
+  for (let y = 190; y < FLOOR + 30; y += 46) {
+    ctx.moveTo(438, y); ctx.lineTo(W, y);
+    ctx.moveTo(438, y); ctx.lineTo(W, y + 46);
+  }
+  for (let x = 300; x < 438; x += 34) { ctx.moveTo(x, 174); ctx.lineTo(x, 240); }
+  ctx.stroke();
+}
+
+function drawTrack() {
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#2b2b2f'; ctx.lineWidth = 14; ctx.stroke(trackSkirt);
+  ctx.strokeStyle = '#7a7a80'; ctx.lineWidth = 28; ctx.stroke(trackBand);
+  ctx.save();
+  ctx.shadowColor = '#ff2a3a'; ctx.shadowBlur = 10; ctx.strokeStyle = '#ff5a66'; ctx.lineWidth = 2.2;
+  ctx.stroke(edgeIn); ctx.stroke(edgeOut);
+  ctx.shadowColor = '#fff'; ctx.shadowBlur = 6; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 2;
+  ctx.stroke(centerLine);
+  ctx.restore();
+}
+
+function drawCar(alpha) {
+  const c = state;
+  if (c.mode === 'crashed') return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(c.x, c.y); ctx.rotate(c.th);
+  const g = ctx.createLinearGradient(0, -16, 0, 6);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#85858c');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(-36, 3); ctx.lineTo(-36, -4);
+  ctx.quadraticCurveTo(-28, -9, -14, -13); ctx.quadraticCurveTo(0, -17, 12, -13);
+  ctx.quadraticCurveTo(28, -7, 36, -2); ctx.lineTo(36, 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1b1b20';
+  ctx.beginPath(); ctx.moveTo(-18, -10); ctx.quadraticCurveTo(-2, -15.5, 12, -11.5);
+  ctx.quadraticCurveTo(18, -9.5, 20, -8.5); ctx.lineTo(-20, -8.5); ctx.closePath(); ctx.fill();
+  for (const wx of [-23, 23]) {
+    ctx.fillStyle = '#0d0d0f'; ctx.beginPath(); ctx.arc(wx, 4, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#b8b8be'; ctx.beginPath(); ctx.arc(wx, 4, 3, 0, 7); ctx.fill();
+  }
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = '#ff2030'; ctx.fillStyle = '#ff3a48'; ctx.fillRect(-37, -4, 3, 4);
+  ctx.shadowColor = '#ffffff'; ctx.fillStyle = '#ffffff'; ctx.fillRect(34, -3, 3, 3);
+  ctx.restore();
+}
+
+function drawTrail(alpha) {
+  if (trail.length < 2) return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 1; i < trail.length; i++) {
+    ctx.strokeStyle = `rgba(255,50,60,${i / trail.length * 0.8})`;
+    ctx.beginPath(); ctx.moveTo(trail[i - 1].x, trail[i - 1].y); ctx.lineTo(trail[i].x, trail[i].y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawParticles(alpha) {
+  for (const p of particles) {
+    ctx.fillStyle = `rgba(${p.col},${(p.life / p.max) * (p.g ? 1 : 0.5) * alpha})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+}
+
+function drawWorld(alpha) {
+  drawTrack(); drawTrail(alpha); drawParticles(alpha); drawCar(alpha);
+}
+
+function drawReflection() {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, FLOOR + 2, W, 150); ctx.clip();
+  ctx.translate(0, 2 * FLOOR); ctx.scale(1, -1); ctx.globalAlpha = 0.16;
+  drawWorld(1);
+  ctx.restore();
+  const g = ctx.createLinearGradient(0, FLOOR, 0, FLOOR + 150);
+  g.addColorStop(0, 'rgba(0,0,0,0.2)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, FLOOR + 2, W, 150);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, FLOOR, W, 1);
+}
+
+function drawHeader() {
+  const c = state;
+  ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f2f2';
+  ctx.font = '700 15px Orbitron, monospace';
+  const head = c.mode === 'crashed' ? 'NOBODY SAW THE FAILURES.' : 'EVERYONE SAW THE SUCCESS.';
+  spaced(head, W / 2, 62, 3.5);
+  ctx.font = '500 11px Orbitron, monospace'; ctx.fillStyle = '#bbb';
+  const n = String(testNo).padStart(2, '0');
+  ctx.textAlign = 'right'; spaced('TEST', W / 2 - 4, 108, 4);
+  ctx.textAlign = 'left'; ctx.font = '700 22px Orbitron, monospace'; ctx.fillStyle = '#fff';
+  ctx.fillText(n, W / 2 + 22, 107);
+  ctx.textAlign = 'left';
+}
+
+function bar(x, y, w, frac, col) {
+  ctx.fillStyle = '#1c1c20'; ctx.fillRect(x, y, w, 5);
+  ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), 5);
+}
+
+function drawHUD() {
+  const c = state, air = c.mode === 'air' || c.mode === 'landed' || c.mode === 'crashed';
+  const ang = Math.abs(norm(c.th)) * 180 / Math.PI;
+  const vy = c.vy / 10, vx = Math.abs(c.vx) / 10;
+  const ok = '#5be38a', bad = '#ff4a58', dim = '#8a8a90';
+  ctx.font = '500 9px Orbitron, monospace'; ctx.textBaseline = 'middle';
+
+  // telemetry (left column)
+  const rows = c.mode === 'ramp' || c.mode === 'ready'
+    ? [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
+       ['VELOCIDAD', `${(c.v / 10).toFixed(1)} m/s`, c.v / 480, '#ddd'],
+       ['SALIDA IDEAL', '< 15 m/s', 0, dim],
+       ['SUCCIÓN', keys.space && c.gas > 0 ? 'ON' : 'OFF', keys.space ? 1 : 0, keys.space ? '#ff5a66' : dim]]
+    : [['GAS FRÍO', `${c.gas.toFixed(0)}%`, c.gas / 100, c.gas > 30 ? '#ddd' : bad],
+       ['ÁNGULO', `${ang.toFixed(0)}°`, 1 - ang / 180, ang <= 12 ? ok : bad],
+       ['V. VERTICAL', `${vy.toFixed(1)} m/s`, 1 - Math.max(0, vy) / 40, vy <= 12 ? ok : bad],
+       ['V. HORIZONTAL', `${vx.toFixed(1)} m/s`, 1 - vx / 40, vx <= 13 ? ok : bad]];
+  rows.forEach(([label, val, f, col], i) => {
+    const y = 852 + i * 26;
+    ctx.fillStyle = dim; ctx.textAlign = 'left'; ctx.fillText(label, 20, y);
+    ctx.fillStyle = col; ctx.textAlign = 'right'; ctx.fillText(val, 180, y);
+    bar(20, y + 8, 160, f, col);
+  });
+
+  // thruster usage (middle column)
+  const use = [['▲', air ? 'PROPULSOR' : 'ACELERAR', 'up'], ['◀', 'GIRO IZQ', 'left'], ['▶', 'GIRO DER', 'right'], ['␣', 'SUCCIÓN', 'space']];
+  use.forEach(([sym, label, k], i) => {
+    const y = 852 + i * 26, t = c.use[k];
+    ctx.fillStyle = keys[k] ? '#ff3a48' : '#333'; ctx.beginPath(); ctx.arc(204, y, 3.5, 0, 7); ctx.fill();
+    ctx.fillStyle = dim; ctx.textAlign = 'left'; ctx.fillText(`${sym} ${label}`, 214, y);
+    ctx.fillStyle = t > 0 ? '#ddd' : '#555'; ctx.textAlign = 'right'; ctx.fillText(`${t.toFixed(1)}s`, 336, y);
+    bar(214, y + 8, 122, t / 3, keys[k] ? '#ff5a66' : '#77777d');
+  });
+
+  // attitude dial (right)
+  const cx = 398, cy = 890, R = 38;
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+  ctx.strokeStyle = ok; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2 - 0.21, -Math.PI / 2 + 0.21); ctx.stroke();
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(c.th);
+  ctx.strokeStyle = ang <= 12 ? ok : '#ddd'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -R + 6); ctx.stroke();      // roof direction
+  ctx.fillStyle = '#ddd'; ctx.fillRect(-16, -2, 32, 5);
+  ctx.fillStyle = '#ff3a48'; ctx.fillRect(-17, -2, 3, 3);
+  ctx.restore();
+  ctx.fillStyle = dim; ctx.textAlign = 'center'; ctx.fillText('ACTITUD', cx, cy + R + 12);
+
+  ctx.fillStyle = '#5a5a60'; ctx.font = '500 8.5px Orbitron, monospace';
+  ctx.fillText(isTouch ? 'RAMPA: ▲ ACELERA · ▼ FRENA · SUCCIÓN' : 'RAMPA: ↑ ACELERA · ↓ FRENA · ESPACIO SUCCIÓN', W / 2, 970);
+  ctx.fillText(isTouch ? 'AIRE: ▲ PROPULSOR · ⟲ ⟳ GIRO' : 'AIRE: ↑ PROPULSOR · ← → GIRO · R REINICIAR', W / 2, 986);
+  ctx.textAlign = 'left';
+}
+
+function panel(lines, y0) {
+  const h = lines.length * 22 + 26;
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(24, y0, 270, h); ctx.strokeRect(24.5, y0 + 0.5, 270, h);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  lines.forEach(([t, font, col], i) => { ctx.font = font; ctx.fillStyle = col; ctx.fillText(t, 40, y0 + 24 + i * 22); });
+}
+
+function drawOverlay() {
+  const c = state, B = '700 13px Orbitron, monospace', S = '500 9.5px Orbitron, monospace';
+  if (c.mode === 'ready') {
+    panel([['MISIÓN', B, '#fff'],
+           ['1. Subí la rampa (↑). En pared y techo', S, '#bbb'],
+           ['   mantené la SUCCIÓN (espacio).', S, '#bbb'],
+           ['2. Salís boca abajo: girá con ← →', S, '#bbb'],
+           ['3. Frená la caída con ↑ (empuja', S, '#bbb'],
+           ['   hacia donde apunta el techo).', S, '#bbb'],
+           ['4. Aterrizá con las 4 ruedas:', S, '#bbb'],
+           ['   < 12°, < 12 m/s vertical.', S, '#bbb'],
+           ['PRESIONÁ ↑ PARA ARRANCAR', B, '#ff5a66']], 300);
+  } else if (c.mode === 'landed') {
+    panel([['ATERRIZAJE LIMPIO', B, '#5be38a'],
+           [`PUNTAJE  ${c.score}`, B, '#fff'],
+           [`MEJOR    ${best}`, S, '#bbb'],
+           [`Salida de rampa: ${(c.exitSpeed / 10).toFixed(1)} m/s`, S, '#bbb'],
+           [`Gas restante: ${c.gas.toFixed(0)}%`, S, '#bbb'],
+           [isTouch ? 'TOCÁ PARA EL SIGUIENTE TEST' : 'R / ENTER: SIGUIENTE TEST', B, '#ff5a66']], 320);
+  } else if (c.mode === 'crashed') {
+    panel([['IMPACTO — AUTO DESTRUIDO', B, '#ff4a58'],
+           ...c.reasons.map(r => ['· ' + r, S, '#ddd']),
+           ...(c.msg ? [['· Se despegó: ' + c.msg, S, '#ddd']] : []),
+           [isTouch ? 'TOCÁ PARA REINTENTAR' : 'R / ENTER: REINTENTAR', B, '#ff5a66']], 320);
+  } else if (c.mode === 'air' && c.msg) {
+    ctx.font = '700 11px Orbitron, monospace'; ctx.fillStyle = '#ff5a66'; ctx.textAlign = 'center';
+    ctx.fillText(c.msg, W / 2, 140); ctx.textAlign = 'left';
+  }
+}
+
+function draw() {
+  drawBackground();
+  drawScaffold();
+  drawReflection();
+  drawWorld(1);
+  if (flash) { ctx.fillStyle = `rgba(255,40,50,${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
+  drawHeader();
+  drawHUD();
+  drawOverlay();
+}
+
+// ---------- loop ----------
+reset(false);
+let last = performance.now(), acc = 0;
+const DT = 1 / 120;
+function frame(t) {
+  acc += Math.min(0.1, (t - last) / 1000); last = t;
+  while (acc >= DT) { step(DT); acc -= DT; }
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
