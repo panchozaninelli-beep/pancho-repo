@@ -292,14 +292,16 @@ function stepRamp(dt) {
 function stepAir(dt) {
   const c = state;
   let ax = lvl().wind, ay = G, al = 0;
+  // slow motion only slows the flight (translation); rotation and controls keep normal speed
+  const k = c.slowLeft > 0 ? SLOWMO : 1;
   const ux = Math.sin(c.th), uy = -Math.cos(c.th);   // car's "roof" direction
-  if (keys.up && c.armed && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt; c.use.up += dt; emit('main'); }
+  if (keys.up && c.armed && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt * k; c.use.up += dt; emit('main'); }
   if (keys.left && c.gas > 0) { al -= SPIN; c.gas -= 10 * dt; c.use.left += dt; emit('ccw'); }
   if (keys.right && c.gas > 0) { al += SPIN; c.gas -= 10 * dt; c.use.right += dt; emit('cw'); }
   c.gas = Math.max(0, c.gas);
   c.w += al * dt; c.w *= 1 - 0.35 * dt;
-  c.vx += ax * dt; c.vy += ay * dt; c.vx *= 1 - 0.04 * dt;
-  c.x += c.vx * dt; c.y += c.vy * dt; c.th += c.w * dt;
+  c.vx += ax * dt * k; c.vy += ay * dt * k; c.vx *= 1 - 0.04 * dt * k;
+  c.x += c.vx * dt * k; c.y += c.vy * dt * k; c.th += c.w * dt;
   if (c.x < LEFT + 40) { c.x = LEFT + 40; c.vx = Math.abs(c.vx) * 0.4; }
   if (c.x > W - 40) { c.x = W - 40; c.vx = -Math.abs(c.vx) * 0.4; }
   trail.push(tailPos()); if (trail.length > 30) trail.shift();
@@ -737,7 +739,7 @@ const DT = 1 / 120;
 function frame(t) {
   const real = Math.min(0.1, (t - last) / 1000); last = t;
   if (state.slowLeft > 0) state.slowLeft = Math.max(0, state.slowLeft - real);
-  acc += real * (state.slowLeft > 0 ? SLOWMO : 1);
+  acc += real;
   while (acc >= DT) { step(DT); acc -= DT; }
   draw();
   updateAudio();
