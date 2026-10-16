@@ -153,7 +153,7 @@
     </div>
     <div class="stats">
       <div><b id="stTotal">0</b><span>PUNTOS</span></div>
-      <div><b id="stLevel">1/7</b><span>NIVEL</span></div>
+      <div><b id="stLevel">0/7</b><span>SUPERADOS</span></div>
       <div><b id="stTests">0</b><span>TESTS</span></div>
       <div><b id="stRank">—</b><span>PUESTO</span></div>
     </div>
@@ -173,7 +173,7 @@
     <div class="sheet-head"><h2>RANKING</h2><button class="close" data-close>CERRAR ✕</button></div>
     <p class="rank-meta" id="rankMeta">CARGANDO…</p>
     <p class="rank-note" id="rankNote" hidden></p>
-    <div class="rank-cols"><span>#</span><span>PILOTO</span><span>NIVEL</span><span>PUNTOS</span></div>
+    <div class="rank-cols"><span>#</span><span>PILOTO</span><span>SUPER.</span><span>PUNTOS</span></div>
     <ol class="rank" id="rankList"></ol>
   </div>
 </div>
@@ -267,13 +267,13 @@ let camX = 0;
 // ---------- levels ----------
 // pad: landing zone centre (x) and width in px; wind: horizontal push in the air (px/s², + = toward the ramp)
 const LEVELS = [
-  { pad: -150, w: 220, gas: 100, wind: 0 },
-  { pad: -380, w: 170, gas: 100, wind: 0 },
-  { pad: -220, w: 130, gas: 80, wind: 0 },
-  { pad: -560, w: 130, gas: 90, wind: 30 },
-  { pad: -150, w: 110, gas: 75, wind: -35 },
-  { pad: -900, w: 110, gas: 100, wind: 0 },
-  { pad: -420, w: 90, gas: 65, wind: 45 },
+  { pad: -150, w: 275, gas: 100, wind: 0 },
+  { pad: -380, w: 210, gas: 100, wind: 0 },
+  { pad: -220, w: 165, gas: 80, wind: 0 },
+  { pad: -560, w: 165, gas: 90, wind: 30 },
+  { pad: -150, w: 140, gas: 75, wind: -35 },
+  { pad: -900, w: 140, gas: 100, wind: 0 },
+  { pad: -420, w: 115, gas: 65, wind: 45 },
 ];
 const EXIT_X = 190;
 const EASY_LEVELS = 3, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-3 get one 5 s slow-motion assist per attempt
@@ -546,7 +546,7 @@ function refreshMenu() {
   $('startLabel').textContent = first ? 'START' : 'CONTINUAR';
   $('startSub').textContent = first ? '' : `NIVEL ${level + 1}`;
   $('stTotal').textContent = totalPoints().toLocaleString('es-AR');
-  $('stLevel').textContent = `${unlocked + 1}/${LEVELS.length}`;
+  $('stLevel').textContent = `${levelsPassed()}/${LEVELS.length}`;
   $('stTests').textContent = String(Math.max(0, testNo - 1));
   const r = myRank();
   $('stRank').textContent = r ? '#' + r : '—';
