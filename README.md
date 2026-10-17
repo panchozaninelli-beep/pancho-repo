@@ -33,7 +33,7 @@ El HUD mide cuántos segundos usaste cada propulsor, el gas restante y la actitu
 En claude.ai el ranking usa la base de datos del artifact, donde solo el dueño y sus colaboradores pueden guardar. Para que cualquiera pueda entrar al ranking:
 
 1. **Supabase**: ya configurado en el proyecto `roadster` (región São Paulo). `index.html` apunta a él con su clave pública *anon* (es pública por diseño; la tabla solo se escribe a través de `submit_score`). `supabase.sql` tiene el esquema por si hay que recrearlo.
-2. **GitHub Pages**: en el repo, *Settings → Pages → Build and deployment*, elegí *Deploy from a branch* y la rama con `index.html` (carpeta `/`). El juego queda en `https://<usuario>.github.io/<repo>/`.
+2. **GitHub Pages + dominio**: el juego se publica en **https://roadsterplay.com** (archivo `CNAME`). En el DNS del dominio (GoDaddy): 4 registros `A` en `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`, y un `CNAME` en `www` → `panchozaninelli-beep.github.io`. En *Settings → Pages*: rama `claude/trusting-maxwell-2w1suw`, carpeta `/`, dominio `roadsterplay.com`, *Enforce HTTPS*.
 
 Cada nombre lo "reclama" el primer dispositivo que lo usa; nadie más puede guardar puntajes con ese nombre. Los puntajes los calcula el navegador, así que alguien con conocimientos técnicos podría inventar uno: para un ranking competitivo serio haría falta validar las partidas en el servidor.
 
