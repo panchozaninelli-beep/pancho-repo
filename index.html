@@ -167,7 +167,7 @@
   .btn.wide { width: 70px; font-size: 10px; letter-spacing: 0.1em; }
   .btn.small { width: 46px; }
   .btn.big { width: 96px; height: 66px; font-size: 26px; border-color: #3a3b42; }
-  .btn { touch-action: none; }
+  .btn, #game, #stage, #c, #pad { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   @media (prefers-reduced-motion: reduce) {
     .screen, .primary, #bg, #intro span { transition: none; }
     #shareBtn, .ghost.share { animation: none; }
@@ -895,6 +895,28 @@ document.querySelectorAll('.btn:not([data-k="space"])').forEach(b => {
 });
 cv.addEventListener('pointerdown', () => { ensureAudio(); if (paused) togglePause(false); else if (canRetry()) reset(true); });
 
+// iOS Safari ignores user-scalable=no: block double-tap and pinch zoom while playing, and undo any zoom that slipped through
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = performance.now();
+  if (screen === 'game' && now - lastTouchEnd < 350) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+document.addEventListener('touchstart', e => { if (screen === 'game' && e.touches.length > 1 && !e.target.closest('.btn')) e.preventDefault(); }, { passive: false });
+$('pad').addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, e => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+function resetZoom() {
+  const vv = window.visualViewport;
+  if (!vv || vv.scale <= 1.01) return;
+  const m = document.querySelector('meta[name="viewport"]');
+  if (!m) return;
+  const c = m.getAttribute('content');
+  m.setAttribute('content', c + ',width=device-width');   // re-applying the viewport makes Safari snap back to 1x
+  requestAnimationFrame(() => m.setAttribute('content', c));
+}
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (screen === 'game') setTimeout(resetZoom, 250); });
+
 // ---------- screens ----------
 const firstTime = () => store.get('t47_played') !== '1';
 function openSheet(id) { $(id).hidden = false; const f = $(id).querySelector('.close'); if (f) f.focus({ preventScroll: true }); }
@@ -1066,6 +1088,7 @@ function reset(next) {
             endedAt: 0, path: [], land: null,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
   particles = []; trail = []; flash = 0; camX = COL - W; shake = 0;
+  if (typeof resetZoom === 'function') resetZoom();
   placeOnTrack();
   syncSuctionBtn();
 }
