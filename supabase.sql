@@ -3,6 +3,7 @@
 -- then paste the project URL and anon key into SUPABASE_URL / SUPABASE_KEY in index.html.
 
 create extension if not exists pgcrypto with schema extensions;
+create extension if not exists unaccent with schema extensions;
 
 create table if not exists public.scores (
   name        text primary key check (name ~ '^[A-Z0-9ÁÉÍÓÚÜÑ _.\-]{1,14}$'),
@@ -33,6 +34,15 @@ declare
 begin
   if p_name !~ '^[A-Z0-9ÁÉÍÓÚÜÑ _.\-]{1,14}$' or char_length(coalesce(p_token, '')) < 16 then return 'invalid'; end if;
   if p_total < 0 or p_total > 14000 or p_passed < 0 or p_passed > 8 then return 'invalid'; end if;
+  -- the same name filter as the game (folded: no accents, no separators, look-alike digits as letters)
+  if translate(regexp_replace(upper(extensions.unaccent(p_name)), '[ _.\-]', '', 'g'), '013457', 'OIEAST')
+       ~ '(MIERD|VERGA|FORRO|PELOTUD|SORETE|TROLO|MARICON|MOGOLIC|CULIAD|CULIAO|CHUPALA|CHUPAME|GARCHA|PORONGA|VIOLAD|VIOLAR|NAZI|HITLER|FUCK|SHIT|BITCH|PUSSY|CUNT|NIGG|NIGA|FAGGOT|WHORE|SLUT|RETARD|PORN|HIJODEPUTA)'
+     or translate(regexp_replace(upper(extensions.unaccent(p_name)), '[ _.\-]', '', 'g'), '013457', 'OIEAST')
+       ~ '^(PUTO|PUTA|PIJA|CONCHA|COGER|RAPE|CULO|PENE|TETA|TETAS|DICK|COCK|HDP|CTM|KKK|SEX|ANAL|PIS|CACA)$'
+     or translate(upper(extensions.unaccent(p_name)), '013457', 'OIEAST')
+       ~ '(^|[ _.\-])(PUTO|PUTA|PIJA|CONCHA|COGER|RAPE|CULO|PENE|TETA|TETAS|DICK|COCK|HDP|CTM|KKK|SEX|ANAL|PIS|CACA)($|[ _.\-])' then
+    return 'blocked';
+  end if;
 
   select * into cur from public.scores where name = p_name;
   if not found then

@@ -35,3 +35,6 @@ En claude.ai el ranking usa la base de datos del artifact, donde solo el dueño 
 3. **GitHub Pages**: en el repo, *Settings → Pages → Build and deployment*, elegí *Deploy from a branch* y la rama con `index.html` (carpeta `/`). El juego queda en `https://<usuario>.github.io/<repo>/`.
 
 Cada nombre lo "reclama" el primer dispositivo que lo usa; nadie más puede guardar puntajes con ese nombre. Los puntajes los calcula el navegador, así que alguien con conocimientos técnicos podría inventar uno: para un ranking competitivo serio haría falta validar las partidas en el servidor.
+
+---
+© 2026 Toma Uno Studio. Todos los derechos reservados (ver `LICENSE`).
