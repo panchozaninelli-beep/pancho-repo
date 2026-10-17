@@ -24,6 +24,8 @@ Hay 8 niveles: la zona queda más lejos o más chica, hay menos gas y aparece vi
 | —     | P                | Pausa                                          |
 | —     | Esc              | Volver al menú                                 |
 
+El juego está en **castellano e inglés**: el idioma se elige con el selector ES / EN del menú (la primera vez se toma el del navegador).
+
 El HUD mide cuántos segundos usaste cada propulsor, el gas restante y la actitud del auto. En celular aparecen botones táctiles.
 
 ## Ranking mundial abierto (sitio propio)

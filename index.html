@@ -57,6 +57,11 @@
     #menu { align-items: center; justify-content: flex-start; padding-left: max(8vw, 16px);
       background: linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 38%, rgba(0,0,0,0) 62%); }
   }
+  .menu-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .lang { display: flex; border: 1px solid var(--line-strong); flex: none; }
+  .lang button { all: unset; cursor: pointer; padding: 6px 10px; font: 600 10px var(--f-ui); letter-spacing: 0.2em; color: var(--silver-dim); }
+  .lang button[aria-pressed="true"] { background: var(--silver); color: #000; }
+  .lang button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
   .eyebrow { margin: 0; font: 500 10px var(--f-ui); letter-spacing: 0.32em; color: var(--silver-dim); display: flex; align-items: center; gap: 10px; }
   .eyebrow::before { content: ""; width: 18px; height: 2px; background: var(--red); flex: none; }
   .title { margin: 0; font: 400 clamp(36px, 10.6vw, 60px) / 1 var(--f-display); letter-spacing: 0.02em; display: grid; gap: 12px; }
@@ -175,58 +180,63 @@
   <div class="load">
     <div class="mark">ROADSTER<b>.</b></div>
     <div class="bar"><i id="loadBar"></i></div>
-    <div class="status"><span id="loadText">CARGANDO GAS FRÍO</span><span id="loadPct">0%</span></div>
+    <div class="status"><span id="loadText"></span><span id="loadPct">0%</span></div>
     <div class="skip" id="skipHint"></div>
   </div>
 </div>
 
 <div id="menu" class="screen off">
   <div class="menu">
-    <p class="eyebrow">SUCCIÓN MULTIMODO · GAS FRÍO</p>
+    <div class="menu-top">
+      <p class="eyebrow" data-i18n="eyebrow">SUCCIÓN MULTIMODO · GAS FRÍO</p>
+      <div class="lang" role="group" aria-label="Idioma / Language">
+        <button data-lang="es" aria-pressed="true">ES</button><button data-lang="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
     <h1 class="title"><span class="t1">ROADSTER</span><span class="t2" aria-hidden="true"></span></h1>
-    <p class="tag">Subí la rampa con succión, salí boca abajo y aterrizá con las cuatro ruedas usando gas frío.</p>
-    <label class="field"><span>PILOTO</span><input id="pilot" maxlength="14" autocomplete="off" spellcheck="false" placeholder="TU NOMBRE" aria-describedby="pilotErr">
+    <p class="tag" data-i18n="tag">Subí la rampa con succión, salí boca abajo y aterrizá con las cuatro ruedas usando gas frío.</p>
+    <label class="field"><span data-i18n="pilot">PILOTO</span><input id="pilot" maxlength="14" autocomplete="off" spellcheck="false" placeholder="TU NOMBRE" data-i18n-ph="pilotPh" aria-describedby="pilotErr">
       <p class="field-err" id="pilotErr" hidden></p></label>
     <button class="primary" id="startBtn"><span id="startLabel">START</span><small id="startSub"></small></button>
     <div class="row">
-      <button class="ghost" id="levelsBtn">NIVELES</button>
+      <button class="ghost" id="levelsBtn" data-i18n="levels">NIVELES</button>
       <button class="ghost" id="rankBtn">RANKING</button>
       <button class="ghost" id="soundBtn">SONIDO</button>
-      <button class="ghost share" id="shareMenu">COMPARTIR</button>
+      <button class="ghost share" id="shareMenu" data-i18n="share">COMPARTIR</button>
     </div>
     <p class="chase" id="chase" hidden></p>
     <div class="stats">
-      <div><b id="stTotal">0</b><span>PUNTOS</span></div>
-      <div><b id="stLevel">0/8</b><span>SUPERADOS</span></div>
+      <div><b id="stTotal">0</b><span data-i18n="stPoints">PUNTOS</span></div>
+      <div><b id="stLevel">0/8</b><span data-i18n="stPassed">SUPERADOS</span></div>
       <div><b id="stTests">0</b><span>TESTS</span></div>
-      <div><b id="stRank">—</b><span>PUESTO</span></div>
+      <div><b id="stRank">—</b><span data-i18n="stRank">PUESTO</span></div>
     </div>
-    <p class="hint">ENTER PARA EMPEZAR · ESC VUELVE AL MENÚ</p>
+    <p class="hint" data-i18n="hint">ENTER PARA EMPEZAR · ESC VUELVE AL MENÚ</p>
     <p class="credit">© 2026 TOMA UNO STUDIO</p>
   </div>
 </div>
 
 <div id="levelsSheet" class="sheet" hidden>
   <div class="sheet-in">
-    <div class="sheet-head"><h2>NIVELES</h2><button class="close" data-close>CERRAR ✕</button></div>
+    <div class="sheet-head"><h2 data-i18n="levels">NIVELES</h2><button class="close" data-close data-i18n="close">CERRAR ✕</button></div>
     <div class="levels" id="levelGrid"></div>
   </div>
 </div>
 
 <div id="rankSheet" class="sheet" hidden>
   <div class="sheet-in">
-    <div class="sheet-head"><h2>RANKING</h2><button class="close" data-close>CERRAR ✕</button></div>
-    <p class="rank-meta" id="rankMeta">CARGANDO…</p>
+    <div class="sheet-head"><h2>RANKING</h2><button class="close" data-close data-i18n="close">CERRAR ✕</button></div>
+    <p class="rank-meta" id="rankMeta" data-i18n="loading">CARGANDO…</p>
     <p class="rank-note" id="rankNote" hidden></p>
-    <div class="rank-cols"><span>#</span><span>PILOTO</span><span>SUPER.</span><span>PUNTOS</span></div>
+    <div class="rank-cols"><span>#</span><span data-i18n="colPilot">PILOTO</span><span data-i18n="colPassed">SUPER.</span><span data-i18n="colPoints">PUNTOS</span></div>
     <ol class="rank" id="rankList"></ol>
   </div>
 </div>
 
 <div id="shareSheet" class="sheet" hidden>
   <div class="sheet-in">
-    <div class="sheet-head"><h2>COMPARTIR</h2><button class="close" data-close>CERRAR ✕</button></div>
-    <p class="rank-meta">COPIÁ ESTE TEXTO Y MANDALO</p>
+    <div class="sheet-head"><h2 data-i18n="share">COMPARTIR</h2><button class="close" data-close data-i18n="close">CERRAR ✕</button></div>
+    <p class="rank-meta" data-i18n="copyThis">COPIÁ ESTE TEXTO Y MANDALO</p>
     <textarea id="shareText" readonly></textarea>
   </div>
 </div>
@@ -236,13 +246,13 @@
   <div id="stage">
     <canvas id="c"></canvas>
     <div class="tbar">
-      <button class="tb" id="menuBtn">MENÚ</button>
+      <button class="tb" id="menuBtn" data-i18n="menu">MENÚ</button>
       <span class="gap"></span>
-      <button class="tb" id="pauseBtn">PAUSA</button>
-      <button class="tb" id="fsBtn">PANTALLA COMPLETA</button>
+      <button class="tb" id="pauseBtn" data-i18n="pause">PAUSA</button>
+      <button class="tb" id="fsBtn" data-i18n="fs">PANTALLA COMPLETA</button>
       <button class="tb" id="soundTb">SONIDO</button>
     </div>
-    <button id="shareBtn" hidden>COMPARTIR</button>
+    <button id="shareBtn" hidden data-i18n="share">COMPARTIR</button>
   </div>
   <div id="pad">
     <div class="btn" data-k="left">⟲</div>
@@ -271,6 +281,166 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
 };
+// ---------- language: Spanish / English ----------
+const STR = {
+  es: {
+    eyebrow: 'SUCCIÓN MULTIMODO · GAS FRÍO',
+    tag: 'Subí la rampa con succión, salí boca abajo y aterrizá con las cuatro ruedas usando gas frío.',
+    pilot: 'PILOTO', pilotPh: 'TU NOMBRE', pilotDefault: 'PILOTO', you: 'VOS',
+    levels: 'NIVELES', ranking: 'RANKING', share: 'COMPARTIR',
+    stPoints: 'PUNTOS', stPassed: 'SUPERADOS', stTests: 'TESTS', stRank: 'PUESTO',
+    hint: 'ENTER PARA EMPEZAR · ESC VUELVE AL MENÚ', close: 'CERRAR ✕', loading: 'CARGANDO…',
+    colPilot: 'PILOTO', colPassed: 'SUPER.', colPoints: 'PUNTOS', copyThis: 'COPIÁ ESTE TEXTO Y MANDALO',
+    menu: 'MENÚ', pause: 'PAUSA', resume: 'SEGUIR', fs: 'PANTALLA COMPLETA', fsExit: 'SALIR DE PANTALLA COMPLETA',
+    soundOn: 'SONIDO ON', soundOff: 'SONIDO OFF', start: 'START', cont: 'CONTINUAR', levelN: n => `NIVEL ${n}`,
+    loadSteps: ['CARGANDO GAS FRÍO', 'CALIBRANDO SUCCIÓN', 'ALINEANDO PROPULSORES', 'LISTO'],
+    tapEnter: 'TOCÁ PARA ENTRAR', anyKey: 'PRESIONÁ CUALQUIER TECLA',
+    nameTaken: n => `"${n}" ya está en el ranking. Elegí otro nombre.`, nameBlocked: 'Ese nombre no está permitido. Elegí otro.',
+    chaseEnter: pts => `Superá el nivel 1 para entrar al ranking. El #1 es <b></b> con ${pts} pts.`,
+    chaseTop: 'Sos el <b>#1</b> del ranking. Que nadie te pase.',
+    chaseNext: (pts, i) => `Te faltan <b>${pts} pts</b> para pasar a <b></b> (#${i}).`,
+    rankMeta: n => `TOP MUNDIAL · ${n} ${n === 1 ? 'PILOTO' : 'PILOTOS'} · SUMA DEL MEJOR PUNTAJE DE CADA NIVEL`,
+    rankEmpty: 'Todavía no hay pilotos. Superá el nivel 1 y quedás primero.',
+    rankReadOnly: 'Con tu acceso podés ver el ranking pero no guardar puntajes. Pedile al dueño del juego que te invite como colaborador.',
+    rankConnecting: 'CONECTANDO CON EL RANKING…', rankLocal: 'RANKING LOCAL · ESTE DISPOSITIVO',
+    rankLocalNote: 'El ranking mundial funciona cuando abrís el juego desde su link publicado. Acá se muestra tu puntaje.',
+    rankLocalEmpty: 'Superá un nivel para sumar puntos.',
+    shareNoPts: url => `Probá ROADSTER: subí la rampa con succión, salí boca abajo y aterrizá con gas frío. ¿Llegás al ranking? ${url}`,
+    shareMsg: (pts, passed, n, r, url) => `Hice ${pts} puntos en ROADSTER y superé ${passed}/${n} niveles${r ? ` (puesto #${r} del ranking)` : ''}. ¿Me superás? ${url}`,
+    copied: 'COPIADO · PEGALO DONDE QUIERAS', noFs: 'ESTE NAVEGADOR NO PERMITE PANTALLA COMPLETA',
+    lvZone: (d, g) => `ZONA ${d} m · GAS ${g}%`, lvWind: (a, v) => `VIENTO ${a} ${v}`, lvNoWind: 'SIN VIENTO', lvAssist: ' · AYUDA',
+    locked: 'BLOQUEADO', bestN: n => `MEJOR ${n}`, notCleared: 'SIN SUPERAR',
+    padSuction: 'SUCCIÓN', padSlow: 'LENTO', padRestart: 'REINICIAR',
+    slip: 'SIN ADHERENCIA', slipLine: 'Se despegó de la rampa: sin adherencia',
+    levelLine: (n, N, d, w) => `NIVEL ${n}/${N}   ·   ZONA ${d} m   ·   ${w}`,
+    windHdr: (a, v) => `VIENTO ${a} ${v} m/s²`, noWindHdr: 'SIN VIENTO',
+    landingZone: 'ZONA DE ATERRIZAJE', zoneOff: d => `◀ ZONA ${d} m`, rampOff: d => `RAMPA ${d} m ▶`,
+    gasFrio: 'GAS FRÍO', attitude: 'ACTITUD', speed: 'VELOCIDAD', suctionOn: 'SUCCIÓN ON', suctionOff: 'SUCCIÓN OFF',
+    zonePill: d => `ZONA ${d} m`, envelope: 'ENVOLVENTE DE ATERRIZAJE', tilt: 'INCLINACIÓN', sink: 'CAÍDA', drift: 'DERIVA', spin: 'GIRO',
+    chipThrust: 'PROPULSOR', chipThrottle: 'ACELERAR', chipRot: 'GIRO', chipSuction: 'SUCCIÓN',
+    hintOverTouch: 'TOCÁ LA PANTALLA PARA SEGUIR',
+    hintOver: passed => `ESPACIO ${passed ? 'SEGUIR' : 'REINTENTAR'}   ·   ESC MENÚ`,
+    hintAir: easy => `↑ PROPULSOR   ·   ← → GIRO${easy ? '   ·   ESPACIO CÁMARA LENTA' : ''}`,
+    hintRamp: '↑ ACELERAR   ·   ↓ FRENAR   ·   ESPACIO SUCCIÓN   ·   ESC MENÚ',
+    retryTouch: 'TOCÁ O ▲ PARA REINTENTAR', retryKey: '↑ O ESPACIO · REINTENTAR',
+    contTouch: 'TOCÁ O ▲ PARA SEGUIR', contKey: '↑ O ESPACIO · SEGUIR',
+    readyTitle: (n, d) => `NIVEL ${n} · ZONA ${d} m`,
+    coach1: 'Llevá el auto a la zona verde', coach2: 'y caé con las cuatro ruedas.', coach3: 'Te voy guiando en cada paso.',
+    readyInfo: (g, wind, easy) => `Gas ${g}% · ${wind}${easy ? ' · con ayuda' : ''}`,
+    windLow: (a, v) => `viento ${a} ${v} m/s²`, noWindLow: 'sin viento',
+    holdStartTouch: 'MANTENÉ ▲ PARA ARRANCAR', holdStartKey: 'MANTENÉ ↑ PARA ARRANCAR',
+    tips: ['Salí despacio de la rampa: la zona está cerca.', 'La zona está más lejos: salí más rápido.',
+           'Poco gas: apagá la succión en el tramo plano.', 'Primer viento, suave: te frena un poco en el aire.',
+           'Viento en contra y zona lejos: salí muy rápido.', 'El viento te empuja hacia afuera: salí lento.',
+           'Salto largo: salí a fondo y guardá gas para frenar.', 'Final: viento fuerte, poco gas y zona angosta.'],
+    missTitle: 'FUERA DE ZONA', missIntact: 'El auto quedó entero.',
+    missBy: (short, m) => `${short ? 'Te quedaste corto' : 'Te pasaste'} por ${m} m.`,
+    missShortTip: 'Salí más rápido de la rampa.', missLongTip: 'Salí más lento o frená en el aire.',
+    winTitle: 'ATERRIZAJE PERFECTO', winPts: (s, rec) => `${s} PUNTOS${rec ? '  ·  RÉCORD' : ''}`,
+    winExit: (v, g) => `Salida de rampa ${v} m/s · gas ${g}%`, winTotal: (t, r) => `Total ${t} pts${r ? ` · puesto mundial #${r}` : ''}`,
+    allCleared: n => `Superaste los ${n} niveles.`, unlockedN: n => `Desbloqueaste el nivel ${n}.`,
+    crashTitle: 'IMPACTO · AUTO DESTRUIDO', maxLbl: 'máx',
+    slipping: '¡SE DESPEGA! PRENDÉ LA SUCCIÓN', suctionIsOff: 'SUCCIÓN APAGADA', rearm: 'SOLTÁ Y VOLVÉ A APRETAR PARA EL PROPULSOR',
+    slowmo: t => `CÁMARA LENTA  ${t} s`, slowAvail: k => `${k}: CÁMARA LENTA 5 s`, keySlow: 'LENTO', keySpace: 'ESPACIO',
+    paused: 'PAUSA', resumeTouch: 'TOCÁ PARA SEGUIR', resumeKey: 'P O CUALQUIER FLECHA PARA SEGUIR',
+    tipSlip: 'Mantené la succión prendida en la pared.', tipFlip: 'Empezá a girar apenas salís de la rampa.',
+    tipTilt: 'Enderezalo antes: falta girar un poco más.', tipSink: k => `Mantené ${k} más tiempo cerca del piso.`,
+    tipDrift: 'Inclinate contra la deriva para frenarla.', tipSpin: 'Soltá el giro antes de tocar el piso.',
+    cReady: k => `MANTENÉ ${k} PARA ACELERAR`, cWall: k => `MANTENÉ ${k} · LA SUCCIÓN TE PEGA A LA PARED`,
+    cNow: k => `¡AHÍ! SOLTÁ ${k}: LA LÍNEA ESTÁ EN VERDE`, cMore: k => `SEGUÍ CON ${k} HASTA QUE LA LÍNEA LLEGUE A LA ZONA`,
+    cBrake: k => `TE PASÁS: FRENÁ CON ${k}`, cTurn: k => `GIRÁ CON ${k} HASTA PONERLO DERECHO`,
+    cSink: k => `¡FRENÁ LA CAÍDA! MANTENÉ ${k}`, cGood: 'BIEN · BAJÁ SUAVE DENTRO DE LA ZONA',
+  },
+  en: {
+    eyebrow: 'MULTIMODE SUCTION · COLD GAS',
+    tag: 'Climb the ramp on suction, leave it upside down and land on all four wheels with cold-gas thrusters.',
+    pilot: 'PILOT', pilotPh: 'YOUR NAME', pilotDefault: 'PILOT', you: 'YOU',
+    levels: 'LEVELS', ranking: 'RANKING', share: 'SHARE',
+    stPoints: 'POINTS', stPassed: 'CLEARED', stTests: 'TESTS', stRank: 'RANK',
+    hint: 'ENTER TO START · ESC BACK TO MENU', close: 'CLOSE ✕', loading: 'LOADING…',
+    colPilot: 'PILOT', colPassed: 'CLEARED', colPoints: 'POINTS', copyThis: 'COPY THIS TEXT AND SEND IT',
+    menu: 'MENU', pause: 'PAUSE', resume: 'RESUME', fs: 'FULL SCREEN', fsExit: 'EXIT FULL SCREEN',
+    soundOn: 'SOUND ON', soundOff: 'SOUND OFF', start: 'START', cont: 'CONTINUE', levelN: n => `LEVEL ${n}`,
+    loadSteps: ['LOADING COLD GAS', 'CALIBRATING SUCTION', 'ALIGNING THRUSTERS', 'READY'],
+    tapEnter: 'TAP TO ENTER', anyKey: 'PRESS ANY KEY',
+    nameTaken: n => `"${n}" is already on the ranking. Pick another name.`, nameBlocked: "That name isn't allowed. Pick another one.",
+    chaseEnter: pts => `Clear level 1 to get on the ranking. #1 is <b></b> with ${pts} pts.`,
+    chaseTop: 'You are <b>#1</b> on the ranking. Keep it that way.',
+    chaseNext: (pts, i) => `<b>${pts} pts</b> more to pass <b></b> (#${i}).`,
+    rankMeta: n => `WORLD TOP · ${n} ${n === 1 ? 'PILOT' : 'PILOTS'} · SUM OF THE BEST SCORE ON EACH LEVEL`,
+    rankEmpty: "No pilots yet. Clear level 1 and you're first.",
+    rankReadOnly: "With your access you can see the ranking but not save scores. Ask the game's owner to invite you as a contributor.",
+    rankConnecting: 'CONNECTING TO THE RANKING…', rankLocal: 'LOCAL RANKING · THIS DEVICE',
+    rankLocalNote: 'The world ranking works when you open the game from its published link. Here you see your own score.',
+    rankLocalEmpty: 'Clear a level to score points.',
+    shareNoPts: url => `Try ROADSTER: climb the ramp on suction, leave it upside down and land on cold gas. Can you make the ranking? ${url}`,
+    shareMsg: (pts, passed, n, r, url) => `I scored ${pts} points in ROADSTER and cleared ${passed}/${n} levels${r ? ` (#${r} on the ranking)` : ''}. Can you beat me? ${url}`,
+    copied: 'COPIED · PASTE IT ANYWHERE', noFs: "THIS BROWSER DOESN'T ALLOW FULL SCREEN",
+    lvZone: (d, g) => `ZONE ${d} m · GAS ${g}%`, lvWind: (a, v) => `WIND ${a} ${v}`, lvNoWind: 'NO WIND', lvAssist: ' · ASSIST',
+    locked: 'LOCKED', bestN: n => `BEST ${n}`, notCleared: 'NOT CLEARED',
+    padSuction: 'SUCTION', padSlow: 'SLOW', padRestart: 'RESTART',
+    slip: 'LOST GRIP', slipLine: 'It came off the ramp: lost grip',
+    levelLine: (n, N, d, w) => `LEVEL ${n}/${N}   ·   ZONE ${d} m   ·   ${w}`,
+    windHdr: (a, v) => `WIND ${a} ${v} m/s²`, noWindHdr: 'NO WIND',
+    landingZone: 'LANDING ZONE', zoneOff: d => `◀ ZONE ${d} m`, rampOff: d => `RAMP ${d} m ▶`,
+    gasFrio: 'COLD GAS', attitude: 'ATTITUDE', speed: 'SPEED', suctionOn: 'SUCTION ON', suctionOff: 'SUCTION OFF',
+    zonePill: d => `ZONE ${d} m`, envelope: 'LANDING ENVELOPE', tilt: 'TILT', sink: 'SINK', drift: 'DRIFT', spin: 'SPIN',
+    chipThrust: 'THRUST', chipThrottle: 'THROTTLE', chipRot: 'ROTATE', chipSuction: 'SUCTION',
+    hintOverTouch: 'TAP THE SCREEN TO CONTINUE',
+    hintOver: passed => `SPACE ${passed ? 'CONTINUE' : 'RETRY'}   ·   ESC MENU`,
+    hintAir: easy => `↑ THRUST   ·   ← → ROTATE${easy ? '   ·   SPACE SLOW MOTION' : ''}`,
+    hintRamp: '↑ THROTTLE   ·   ↓ BRAKE   ·   SPACE SUCTION   ·   ESC MENU',
+    retryTouch: 'TAP OR ▲ TO RETRY', retryKey: '↑ OR SPACE · RETRY',
+    contTouch: 'TAP OR ▲ TO CONTINUE', contKey: '↑ OR SPACE · CONTINUE',
+    readyTitle: (n, d) => `LEVEL ${n} · ZONE ${d} m`,
+    coach1: 'Get the car to the green zone', coach2: 'and land on all four wheels.', coach3: "I'll guide you step by step.",
+    readyInfo: (g, wind, easy) => `Gas ${g}% · ${wind}${easy ? ' · assist on' : ''}`,
+    windLow: (a, v) => `wind ${a} ${v} m/s²`, noWindLow: 'no wind',
+    holdStartTouch: 'HOLD ▲ TO START', holdStartKey: 'HOLD ↑ TO START',
+    tips: ['Leave the ramp slowly: the zone is close.', 'The zone is further away: leave faster.',
+           'Low on gas: turn suction off on the flat.', 'First wind, a light one: it slows you a bit in the air.',
+           'Headwind and a far zone: leave very fast.', 'The wind pushes you outward: leave slowly.',
+           'Long jump: go flat out and save gas to brake.', 'Final: strong wind, little gas, narrow zone.'],
+    missTitle: 'OUTSIDE THE ZONE', missIntact: 'The car is in one piece.',
+    missBy: (short, m) => `${short ? 'You fell short' : 'You overshot'} by ${m} m.`,
+    missShortTip: 'Leave the ramp faster.', missLongTip: 'Leave slower or brake in the air.',
+    winTitle: 'PERFECT LANDING', winPts: (s, rec) => `${s} POINTS${rec ? '  ·  RECORD' : ''}`,
+    winExit: (v, g) => `Ramp exit ${v} m/s · gas ${g}%`, winTotal: (t, r) => `Total ${t} pts${r ? ` · world rank #${r}` : ''}`,
+    allCleared: n => `You cleared all ${n} levels.`, unlockedN: n => `Level ${n} unlocked.`,
+    crashTitle: 'IMPACT · CAR DESTROYED', maxLbl: 'max',
+    slipping: 'LOSING GRIP! TURN SUCTION ON', suctionIsOff: 'SUCTION OFF', rearm: 'RELEASE AND PRESS AGAIN TO FIRE THRUSTERS',
+    slowmo: t => `SLOW MOTION  ${t} s`, slowAvail: k => `${k}: SLOW MOTION 5 s`, keySlow: 'SLOW', keySpace: 'SPACE',
+    paused: 'PAUSED', resumeTouch: 'TAP TO RESUME', resumeKey: 'P OR ANY ARROW TO RESUME',
+    tipSlip: 'Keep suction on along the wall.', tipFlip: 'Start rotating as soon as you leave the ramp.',
+    tipTilt: 'Straighten up sooner: it needed a bit more rotation.', tipSink: k => `Hold ${k} longer near the ground.`,
+    tipDrift: 'Lean against the drift to stop it.', tipSpin: 'Let go of the rotation before touching down.',
+    cReady: k => `HOLD ${k} TO ACCELERATE`, cWall: k => `HOLD ${k} · SUCTION KEEPS YOU ON THE WALL`,
+    cNow: k => `NOW! RELEASE ${k}: THE LINE IS GREEN`, cMore: k => `KEEP ${k} UNTIL THE LINE REACHES THE ZONE`,
+    cBrake: k => `TOO FAR: BRAKE WITH ${k}`, cTurn: k => `ROTATE WITH ${k} UNTIL IT'S LEVEL`,
+    cSink: k => `BRAKE THE FALL! HOLD ${k}`, cGood: 'GOOD · COME DOWN SOFTLY INSIDE THE ZONE',
+  },
+};
+let lang = store.get('t47_lang') || ((navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en');
+function T(key, ...args) {
+  const v = key in STR[lang] ? STR[lang][key] : STR.es[key];
+  return typeof v === 'function' ? v(...args) : v;
+}
+const fmtN = n => (n || 0).toLocaleString(lang === 'es' ? 'es-AR' : 'en-US');
+// static markup: data-i18n sets text, data-i18n-ph sets a placeholder
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+}
+function setLang(l) {
+  lang = l; store.set('t47_lang', l); applyLang();
+  showNameError(''); refreshMenu(); renderRank();
+  if (!$('levelsSheet').hidden) renderLevels();
+  $('pauseBtn').textContent = T(paused ? 'resume' : 'pause');
+  $('fsBtn').textContent = T(document.fullscreenElement ? 'fsExit' : 'fs');
+}
+
 
 function resize() {
   const dpr = devicePixelRatio || 1;
@@ -341,16 +511,6 @@ const LEVELS = [
 ];
 const EXIT_X = 190;
 const EASY_LEVELS = 4, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-4 get one 5 s slow-motion assist per attempt
-const LEVEL_TIPS = [
-  'Salí despacio de la rampa: la zona está cerca.',
-  'La zona está más lejos: salí más rápido.',
-  'Poco gas: apagá la succión en el tramo plano.',
-  'Primer viento, suave: te frena un poco en el aire.',
-  'Viento en contra y zona lejos: salí muy rápido.',
-  'El viento te empuja hacia afuera: salí lento.',
-  'Salto largo: salí a fondo y guardá gas para frenar.',
-  'Final: viento fuerte, poco gas y zona angosta.',
-];
 let level = 0, unlocked = 0;
 const lvl = () => LEVELS[level];
 const padDist = L => Math.round((EXIT_X - L.pad) / 10);
@@ -387,8 +547,8 @@ function setMuted(m) {
   if (m) { if (AC) AC.suspend(); } else ensureAudio();
 }
 function syncSoundLabels() {
-  $('soundBtn').textContent = muted ? 'SONIDO OFF' : 'SONIDO ON';
-  $('soundTb').textContent = muted ? 'SONIDO OFF' : 'SONIDO ON';
+  $('soundBtn').textContent = T(muted ? 'soundOff' : 'soundOn');
+  $('soundTb').textContent = T(muted ? 'soundOff' : 'soundOn');
 }
 function updateAudio() {
   if (!snd || muted) return;
@@ -467,7 +627,7 @@ async function loadSupabase() {
   renderRank(); refreshMenu();
 }
 function submitSupabase() {
-  const name = pilotName || 'PILOTO';
+  const name = pilotName || T('pilotDefault');
   const body = { p_name: name, p_token: deviceToken, p_total: totalPoints(), p_passed: levelsPassed(), p_bests: { ...bests } };
   const key = JSON.stringify(body);
   if (key === rank.lastSent) return;
@@ -476,8 +636,8 @@ function submitSupabase() {
     .then(() => sb('/rest/v1/rpc/submit_score', { method: 'POST', body: JSON.stringify(body) }))
     .then(res => {
       if (res === 'ok') { if (!claimed.includes(name)) { claimed.push(name); store.set('t47_claimed', JSON.stringify(claimed)); } }
-      else if (res === 'taken') showNameError(`"${name}" ya está en el ranking. Elegí otro nombre.`);
-      else if (res === 'blocked') showNameError('Ese nombre no está permitido. Elegí otro.');
+      else if (res === 'taken') showNameError(T('nameTaken', name));
+      else if (res === 'blocked') showNameError(T('nameBlocked'));
       return loadSupabase();
     })
     .catch(() => { rank.lastSent = ''; });
@@ -534,7 +694,7 @@ function submitScore() {
   if (totalPoints() <= 0) return;
   if (rank.mode === 'supabase') { submitSupabase(); return; }
   if (!rank.db || !rank.uid || rank.readOnly) return;
-  const body = { name: pilotName || 'PILOTO', total: totalPoints(), passed: levelsPassed(), bests: { ...bests } };
+  const body = { name: pilotName || T('pilotDefault'), total: totalPoints(), passed: levelsPassed(), bests: { ...bests } };
   const key = JSON.stringify(body);
   if (key === rank.lastSent) return;
   rank.lastSent = key;
@@ -573,15 +733,15 @@ function nameTaken(n) {
 // the next place up the ranking, for the menu
 function chaseText() {
   const rows = rank.live ? board() : [], me = myRank(), mine = me ? rows[me - 1].total : totalPoints();
-  const fmt = n => (n || 0).toLocaleString('es-AR');
-  if (!mine) return rows.length ? `Superá el nivel 1 para entrar al ranking. El #1 es <b></b> con ${fmt(rows[0].total)} pts.` : '';
+  const fmt = fmtN;
+  if (!mine) return rows.length ? T('chaseEnter', fmt(rows[0].total)) : '';
   if (!rank.live) return '';
-  if (me === 1) return 'Sos el <b>#1</b> del ranking. Que nadie te pase.';
+  if (me === 1) return T('chaseTop');
   let i = me ? me - 2 : rows.length - 1;
   while (i > 0 && (rows[i].total || 0) <= mine) i--;
   const t = rows[i];
   if (!t || (t.total || 0) <= mine) return '';
-  return `Te faltan <b>${fmt(t.total - mine + 1)} pts</b> para pasar a <b></b> (#${i + 1}).`;
+  return T('chaseNext', fmt(t.total - mine + 1), i + 1);
 }
 function chaseName() {
   const rows = rank.live ? board() : [], me = myRank(), mine = me ? rows[me - 1].total : totalPoints();
@@ -608,26 +768,26 @@ function renderRank() {
   note.hidden = true;
   if (rank.live) {
     const rows = board();
-    meta.textContent = `TOP MUNDIAL · ${rows.length} ${rows.length === 1 ? 'PILOTO' : 'PILOTOS'} · SUMA DEL MEJOR PUNTAJE DE CADA NIVEL`;
-    rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), r.name, `${r.passed || 0}/${LEVELS.length}`, (r.total || 0).toLocaleString('es-AR'), r.ids.includes(rank.uid)));
+    meta.textContent = T('rankMeta', rows.length);
+    rows.forEach((r, i) => row(String(i + 1).padStart(2, '0'), r.name, `${r.passed || 0}/${LEVELS.length}`, fmtN(r.total), r.ids.includes(rank.uid)));
     if (!rows.length) {
       const li = document.createElement('li'); li.className = 'empty';
-      li.textContent = 'Todavía no hay pilotos. Superá el nivel 1 y quedás primero.'; list.appendChild(li);
+      li.textContent = T('rankEmpty'); list.appendChild(li);
     } else if (!myRank() && totalPoints() > 0) {
-      row('—', pilotName || 'VOS', `${levelsPassed()}/${LEVELS.length}`, totalPoints().toLocaleString('es-AR'), true);
+      row('—', pilotName || T('you'), `${levelsPassed()}/${LEVELS.length}`, fmtN(totalPoints()), true);
     }
     if (rank.readOnly) {
       note.hidden = false;
-      note.textContent = 'Con tu acceso podés ver el ranking pero no guardar puntajes. Pedile al dueño del juego que te invite como colaborador.';
+      note.textContent = T('rankReadOnly');
     }
   } else {
-    meta.textContent = rank.db ? 'CONECTANDO CON EL RANKING…' : 'RANKING LOCAL · ESTE DISPOSITIVO';
+    meta.textContent = T(rank.db ? 'rankConnecting' : 'rankLocal');
     if (!rank.db) {
       note.hidden = false;
-      note.textContent = 'El ranking mundial funciona cuando abrís el juego desde su link publicado. Acá se muestra tu puntaje.';
+      note.textContent = T('rankLocalNote');
     }
-    if (totalPoints() > 0) row('01', pilotName || 'VOS', `${levelsPassed()}/${LEVELS.length}`, totalPoints().toLocaleString('es-AR'), true);
-    else { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Superá un nivel para sumar puntos.'; list.appendChild(li); }
+    if (totalPoints() > 0) row('01', pilotName || T('you'), `${levelsPassed()}/${LEVELS.length}`, fmtN(totalPoints()), true);
+    else { const li = document.createElement('li'); li.className = 'empty'; li.textContent = T('rankLocalEmpty'); list.appendChild(li); }
   }
 }
 
@@ -635,9 +795,8 @@ function renderRank() {
 function shareUrl() { return window.claude && window.claude.use ? ARTIFACT_URL : location.href.split('#')[0]; }
 function shareMessage() {
   const r = myRank();
-  if (totalPoints() <= 0) return `Probá ROADSTER: subí la rampa con succión, salí boca abajo y aterrizá con gas frío. ¿Llegás al ranking? ${shareUrl()}`;
-  return `Hice ${totalPoints().toLocaleString('es-AR')} puntos en ROADSTER y superé ${levelsPassed()}/${LEVELS.length} niveles` +
-         `${r ? ` (puesto #${r} del ranking)` : ''}. ¿Me superás? ${shareUrl()}`;
+  if (totalPoints() <= 0) return T('shareNoPts', shareUrl());
+  return T('shareMsg', fmtN(totalPoints()), levelsPassed(), LEVELS.length, r, shareUrl());
 }
 let toastTimer = 0;
 function toast(msg) {
@@ -649,7 +808,7 @@ function shareScore() {
   const fallback = () => { $('shareText').value = text; openSheet('shareSheet'); $('shareText').select(); };
   const copy = () => {
     if (!navigator.clipboard) { fallback(); return; }
-    navigator.clipboard.writeText(text).then(() => toast('COPIADO · PEGALO DONDE QUIERAS'), fallback);
+    navigator.clipboard.writeText(text).then(() => toast(T('copied')), fallback);
   };
   if (!(window.claude && window.claude.use) && navigator.share) navigator.share({ text }).catch(e => { if (e && e.name !== 'AbortError') copy(); });
   else copy();
@@ -692,7 +851,7 @@ function togglePause(force) {
   paused = next;
   for (const k in keys) keys[k] = false;
   document.querySelectorAll('.btn.on').forEach(b => b.classList.remove('on'));
-  $('pauseBtn').textContent = paused ? 'SEGUIR' : 'PAUSA';
+  $('pauseBtn').textContent = T(paused ? 'resume' : 'pause');
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && screen === 'game') togglePause(true); });
 function spaceAction() {
@@ -704,7 +863,7 @@ function spaceAction() {
 }
 function syncSuctionBtn() {
   const c = state, over = c.mode === 'landed' || c.mode === 'crashed';
-  const label = over ? 'REINICIAR' : c.mode === 'air' ? (canSlow() || c.slowLeft > 0 ? 'LENTO' : '—') : 'SUCCIÓN';
+  const label = over ? T('padRestart') : c.mode === 'air' ? (canSlow() || c.slowLeft > 0 ? T('padSlow') : '—') : T('padSuction');
   if (suctionBtn.textContent !== label) suctionBtn.textContent = label;
   suctionBtn.classList.toggle('on', c.mode === 'air' ? c.slowLeft > 0 : !over && c.suction);
 }
@@ -758,15 +917,15 @@ function goMenu() {
 }
 function startGame(lv) {
   if (lv != null) { level = lv; }
-  const name = cleanName($('pilot').value) || pilotName || 'PILOTO ' + (100 + Math.floor(Math.random() * 900));
+  const name = cleanName($('pilot').value) || pilotName || T('pilotDefault') + ' ' + (100 + Math.floor(Math.random() * 900));
   $('pilot').value = name;
   if (!nameAllowed(name)) {
-    showNameError('Ese nombre no está permitido. Elegí otro.');
+    showNameError(T('nameBlocked'));
     if (screen !== 'menu') goMenu();
     closeSheets(); $('pilot').focus(); return;
   }
   if (nameTaken(name)) {
-    showNameError(`"${name}" ya está en el ranking. Elegí otro nombre.`);
+    showNameError(T('nameTaken', name));
     if (screen !== 'menu') goMenu();
     closeSheets(); $('pilot').focus(); return;
   }
@@ -782,9 +941,9 @@ function startGame(lv) {
 }
 function refreshMenu() {
   const first = firstTime();
-  $('startLabel').textContent = first ? 'START' : 'CONTINUAR';
-  $('startSub').textContent = first ? '' : `NIVEL ${level + 1}`;
-  $('stTotal').textContent = totalPoints().toLocaleString('es-AR');
+  $('startLabel').textContent = T(first ? 'start' : 'cont');
+  $('startSub').textContent = first ? '' : T('levelN', level + 1);
+  $('stTotal').textContent = fmtN(totalPoints());
   $('stLevel').textContent = `${levelsPassed()}/${LEVELS.length}`;
   $('stTests').textContent = String(Math.max(0, testNo - 1));
   const r = myRank();
@@ -808,9 +967,9 @@ function renderLevels() {
     const w = L.wind / 10;
     const parts = [
       ['n', String(i + 1).padStart(2, '0')],
-      ['m', `ZONA ${padDist(L)} m · GAS ${L.gas}%`],
-      ['m', (w ? `VIENTO ${w > 0 ? '→' : '←'} ${Math.abs(w).toFixed(1)}` : 'SIN VIENTO') + (i < EASY_LEVELS ? ' · AYUDA' : '')],
-      ['s' + (bests[i] ? ' ok' : ''), locked ? 'BLOQUEADO' : bests[i] ? `MEJOR ${bests[i]}` : 'SIN SUPERAR'],
+      ['m', T('lvZone', padDist(L), L.gas)],
+      ['m', (w ? T('lvWind', w > 0 ? '→' : '←', Math.abs(w).toFixed(1)) : T('lvNoWind')) + (i < EASY_LEVELS ? T('lvAssist') : '')],
+      ['s' + (bests[i] ? ' ok' : ''), locked ? T('locked') : bests[i] ? T('bestN', bests[i]) : T('notCleared')],
     ];
     for (const [cls, t] of parts) { const s = document.createElement('span'); s.className = cls; s.textContent = t; b.appendChild(s); }
     if (!locked) b.addEventListener('click', () => { save(); startGame(i); });
@@ -818,6 +977,7 @@ function renderLevels() {
   });
 }
 $('startBtn').addEventListener('click', () => startGame());
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
 $('shareMenu').addEventListener('click', shareScore);
 $('shareBtn').addEventListener('click', e => { e.stopPropagation(); shareScore(); });
 $('pauseBtn').addEventListener('click', e => { e.stopPropagation(); togglePause(); });
@@ -826,12 +986,12 @@ function toggleFullscreen() {
   if (d.fullscreenElement) { d.exitFullscreen && d.exitFullscreen().catch(() => {}); return; }
   const el = d.documentElement;
   const req = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (!req) { toast('ESTE NAVEGADOR NO PERMITE PANTALLA COMPLETA'); return; }
-  Promise.resolve(req.call(el)).catch(() => toast('ESTE NAVEGADOR NO PERMITE PANTALLA COMPLETA'));
+  if (!req) { toast(T('noFs')); return; }
+  Promise.resolve(req.call(el)).catch(() => toast(T('noFs')));
 }
 $('fsBtn').addEventListener('click', e => { e.stopPropagation(); toggleFullscreen(); });
 document.addEventListener('fullscreenchange', () => {
-  $('fsBtn').textContent = document.fullscreenElement ? 'SALIR DE PANTALLA COMPLETA' : 'PANTALLA COMPLETA';
+  $('fsBtn').textContent = T(document.fullscreenElement ? 'fsExit' : 'fs');
   resize();
 });
 $('levelsBtn').addEventListener('click', () => { renderLevels(); openSheet('levelsSheet'); });
@@ -842,8 +1002,8 @@ $('menuBtn').addEventListener('click', e => { e.stopPropagation(); goMenu(); });
 $('pilot').addEventListener('change', () => {
   const n = cleanName($('pilot').value);
   $('pilot').value = n;
-  if (n && !nameAllowed(n)) { showNameError('Ese nombre no está permitido. Elegí otro.'); return; }
-  if (nameTaken(n)) { showNameError(`"${n}" ya está en el ranking. Elegí otro nombre.`); return; }
+  if (n && !nameAllowed(n)) { showNameError(T('nameBlocked')); return; }
+  if (nameTaken(n)) { showNameError(T('nameTaken', n)); return; }
   showNameError('');
   if (n && n !== pilotName) { pilotName = n; save(); submitScore(); }
 });
@@ -864,16 +1024,17 @@ setTimeout(() => {
   splash.t0 = performance.now();
   setTimeout(() => { document.body.classList.add('revealed'); $('intro').hidden = true; }, 1150);
 }, introHold);
-const LOAD_STEPS = ['CARGANDO GAS FRÍO', 'CALIBRANDO SUCCIÓN', 'ALINEANDO PROPULSORES', 'LISTO'];
+
 function stepSplash(now) {
   let p = Math.min(1, (now - splash.t0) / splash.min);
   if (!splash.fonts) p = Math.min(p, 0.92);
   $('loadBar').style.width = (p * 100).toFixed(1) + '%';
   $('loadPct').textContent = Math.round(p * 100) + '%';
-  $('loadText').textContent = p >= 1 ? LOAD_STEPS[3] : LOAD_STEPS[Math.min(2, Math.floor(p * 3))];
+  const steps = T('loadSteps');
+  $('loadText').textContent = p >= 1 ? steps[3] : steps[Math.min(2, Math.floor(p * 3))];
   if (p >= 1 && !splash.ready) {
     splash.ready = true;
-    $('skipHint').textContent = isTouch ? 'TOCÁ PARA ENTRAR' : 'PRESIONÁ CUALQUIER TECLA';
+    $('skipHint').textContent = T(isTouch ? 'tapEnter' : 'anyKey');
     setTimeout(enterMenu, store.get('t47_played') ? 150 : 900);
   }
 }
@@ -936,7 +1097,7 @@ function stepRamp(dt) {
   const need = p.ny > -0.5 ? 0.2 * G : 0;
   if (N < need && c.slip === 0) sfx('slip');
   c.slip = N < need ? c.slip + dt : 0;
-  if (c.slip > 0.35) leaveTrack(p, 'SIN ADHERENCIA');
+  if (c.slip > 0.35) leaveTrack(p, 'slip');
 
   trail.push(tailPos()); if (trail.length > 30) trail.shift();
 }
@@ -1165,7 +1326,7 @@ function drawPad() {
   ctx.fillRect(x0, FLOOR - 2, L.w, 3);
   ctx.fillRect(x0 - 1, FLOOR - 14, 2, 14); ctx.fillRect(x1 - 1, FLOOR - 14, 2, 14);
   ctx.restore();
-  txt(ctx, 'ZONA DE ATERRIZAJE', L.pad, FLOOR - 46, `600 9px ${FU}`, 'rgba(91,227,138,0.9)', 'center', 2, 'bottom');
+  txt(ctx, T('landingZone'), L.pad, FLOOR - 46, `600 9px ${FU}`, 'rgba(91,227,138,0.9)', 'center', 2, 'bottom');
 }
 
 // ballistic path with no thrusters: from the car in the air, or from the ramp exit at the current speed
@@ -1243,8 +1404,8 @@ function drawHeader() {
   txt(ctx, 'TEST', x0, 103, `500 10px ${FU}`, DIM, 'left', 4);
   txt(ctx, n, x0 + lw + 8, 102, `600 26px ${FU}`, '#fff');
   const L = lvl(), wnd = L.wind / 10;
-  txt(ctx, `NIVEL ${level + 1}/${LEVELS.length}   ·   ZONA ${padDist(L)} m   ·   ` +
-           (wnd ? `VIENTO ${wnd > 0 ? '→' : '←'} ${Math.abs(wnd).toFixed(1)} m/s²` : 'SIN VIENTO'),
+  txt(ctx, T('levelLine', level + 1, LEVELS.length, padDist(L),
+             wnd ? T('windHdr', wnd > 0 ? '→' : '←', Math.abs(wnd).toFixed(1)) : T('noWindHdr')),
       W / 2, 133, `500 10px ${FU}`, DIM, 'center', 1.5);
 }
 
@@ -1318,15 +1479,15 @@ function drawHUD() {
   // left: cold gas
   const gasCol = c.gas > 30 ? SILVER : RED;
   gauge(66, 866, 42, c.gas / 100, c.gas.toFixed(0), '% GAS', gasCol);
-  txt(ctx, 'GAS FRÍO', 66, 924, `500 9px ${FU}`, DIM, 'center', 2);
+  txt(ctx, T('gasFrio'), 66, 924, `500 9px ${FU}`, DIM, 'center', 2);
 
   // right: attitude
   attitude(W - 66, 866, 42, c.th, ang <= 12);
-  txt(ctx, `${ang <= 12 ? '✓' : '✕'} ACTITUD ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`, ang <= 12 ? OK : DIM, 'center', 2);
+  txt(ctx, `${ang <= 12 ? '✓' : '✕'} ${T('attitude')} ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`, ang <= 12 ? OK : DIM, 'center', 2);
 
   // centre: speed on the ramp, landing envelope in the air
   if (!air) {
-    txt(ctx, 'VELOCIDAD', 136, 830, `500 9px ${FU}`, DIM, 'left', 2);
+    txt(ctx, T('speed'), 136, 830, `500 9px ${FU}`, DIM, 'left', 2);
     const v = (c.v / 10).toFixed(1);
     txt(ctx, v, 134, 860, `600 36px ${FU}`, '#fff');
     ctx.font = `600 36px ${FU}`; const vw = ctx.measureText(v).width;
@@ -1336,17 +1497,17 @@ function drawHUD() {
       ctx.fillStyle = i < lit ? (i > 18 ? RED : SILVER) : '#16161a';
       ctx.fillRect(136 + i * (sw + 2), 884, sw, 6);
     }
-    pill(136, 910, 92, c.suction && c.gas > 0 ? 'SUCCIÓN ON' : 'SUCCIÓN OFF', c.suction && c.gas > 0, 'rgb(255,42,58)');
-    pill(234, 910, 90, `ZONA ${padDist(lvl())} m`, true, 'rgb(91,227,138)');
+    pill(136, 910, 92, T(c.suction && c.gas > 0 ? 'suctionOn' : 'suctionOff'), c.suction && c.gas > 0, 'rgb(255,42,58)');
+    pill(234, 910, 90, T('zonePill', padDist(lvl())), true, 'rgb(91,227,138)');
   } else {
-    txt(ctx, 'ENVOLVENTE DE ATERRIZAJE', 230, 828, `500 8.5px ${FU}`, FAINT, 'center', 2);
-    envelopeRow(848, 'INCLINACIÓN', ang.toFixed(0), '°', ang, 90, 12);
-    envelopeRow(874, 'CAÍDA', vy.toFixed(1), 'm/s', vy, 40, 12);
-    envelopeRow(900, 'DERIVA', vx.toFixed(1), 'm/s', vx, 40, 13);
+    txt(ctx, T('envelope'), 230, 828, `500 8.5px ${FU}`, FAINT, 'center', 2);
+    envelopeRow(848, T('tilt'), ang.toFixed(0), '°', ang, 90, 12);
+    envelopeRow(874, T('sink'), vy.toFixed(1), 'm/s', vy, 40, 12);
+    envelopeRow(900, T('drift'), vx.toFixed(1), 'm/s', vx, 40, 13);
   }
 
   // thruster usage chips
-  const chips = [['▲', air ? 'PROPULSOR' : 'ACELERAR', 'up'], ['◀', 'GIRO', 'left'], ['▶', 'GIRO', 'right'], ['◉', 'SUCCIÓN', 'space']];
+  const chips = [['▲', T(air ? 'chipThrust' : 'chipThrottle'), 'up'], ['◀', T('chipRot'), 'left'], ['▶', T('chipRot'), 'right'], ['◉', T('chipSuction'), 'space']];
   const cw = (W - 32 - 3 * 8) / 4;
   chips.forEach(([sym, label, k], i) => {
     const x = 16 + i * (cw + 8), y = 938, t = c.use[k];
@@ -1362,10 +1523,10 @@ function drawHUD() {
 
   // context hint
   const over = c.mode === 'landed' || c.mode === 'crashed';
-  const hint = isTouch ? (over ? 'TOCÁ LA PANTALLA PARA SEGUIR' : '')
-    : over ? `ESPACIO ${c.passed ? 'SEGUIR' : 'REINTENTAR'}   ·   ESC MENÚ`
-    : air ? `↑ PROPULSOR   ·   ← → GIRO${level < EASY_LEVELS ? '   ·   ESPACIO CÁMARA LENTA' : ''}`
-    : '↑ ACELERAR   ·   ↓ FRENAR   ·   ESPACIO SUCCIÓN   ·   ESC MENÚ';
+  const hint = isTouch ? (over ? T('hintOverTouch') : '')
+    : over ? T('hintOver', c.passed)
+    : air ? T('hintAir', level < EASY_LEVELS)
+    : T('hintRamp');
   if (hint) txt(ctx, hint, W / 2, 990, `500 9px ${FU}`, FAINT, 'center', 1.5);
 }
 
@@ -1385,75 +1546,75 @@ function banner(text, y, col) { txt(ctx, text, W / 2, y, `600 12px ${FU}`, col, 
 function drawOverlay() {
   const c = state, SUB = '#b5b8bf';
   const act = (touch, key) => isTouch ? touch : key;
-  const retry = act('TOCÁ O ▲ PARA REINTENTAR', '↑ O ESPACIO · REINTENTAR');
+  const retry = act(T('retryTouch'), T('retryKey'));
   if (c.mode === 'ready') {
     const L = lvl(), w = L.wind / 10;
     if (coachOn()) {
-      panel([[`NIVEL ${level + 1} · ZONA ${padDist(L)} m`, 'T', OK],
-             ['Llevá el auto a la zona verde', 'S', '#e6e7ea'],
-             ['y caé con las cuatro ruedas.', 'S', '#e6e7ea'],
-             ['Te voy guiando en cada paso.', 'S', SUB]], 290);
+      panel([[T('readyTitle', level + 1, padDist(L)), 'T', OK],
+             [T('coach1'), 'S', '#e6e7ea'],
+             [T('coach2'), 'S', '#e6e7ea'],
+             [T('coach3'), 'S', SUB]], 290);
     } else {
-      panel([[`NIVEL ${level + 1} · ZONA ${padDist(L)} m`, 'T', OK],
-             [`Gas ${L.gas}% · ${w ? `viento ${w > 0 ? '→' : '←'} ${Math.abs(w).toFixed(1)} m/s²` : 'sin viento'}${level < EASY_LEVELS ? ' · con ayuda' : ''}`, 'S', SUB],
-             [LEVEL_TIPS[level], 'S', '#e6e7ea'],
-             [act('MANTENÉ ▲ PARA ARRANCAR', 'MANTENÉ ↑ PARA ARRANCAR'), 'A', RED]], 290);
+      panel([[T('readyTitle', level + 1, padDist(L)), 'T', OK],
+             [T('readyInfo', L.gas, w ? T('windLow', w > 0 ? '→' : '←', Math.abs(w).toFixed(1)) : T('noWindLow'), level < EASY_LEVELS), 'S', SUB],
+             [T('tips')[level], 'S', '#e6e7ea'],
+             [act(T('holdStartTouch'), T('holdStartKey')), 'A', RED]], 290);
     }
   } else if (c.mode === 'landed' && !c.onPad) {
     const short = c.x > lvl().pad;   // the car flies left, so landing right of the pad means it fell short
-    placeShare(panel([['FUERA DE ZONA', 'T', '#ffb347'],
-           ['El auto quedó entero.', 'S', '#e6e7ea'],
-           [`${short ? 'Te quedaste corto' : 'Te pasaste'} por ${c.miss.toFixed(1)} m.`, 'S', '#e6e7ea'],
-           [short ? 'Salí más rápido de la rampa.' : 'Salí más lento o frená en el aire.', 'S', SUB],
+    placeShare(panel([[T('missTitle'), 'T', '#ffb347'],
+           [T('missIntact'), 'S', '#e6e7ea'],
+           [T('missBy', short, c.miss.toFixed(1)), 'S', '#e6e7ea'],
+           [T(short ? 'missShortTip' : 'missLongTip'), 'S', SUB],
            [retry, 'A', RED]], 320));
   } else if (c.mode === 'landed') {
     const last = level === LEVELS.length - 1, r = myRank();
-    placeShare(panel([['ATERRIZAJE PERFECTO', 'T', OK],
-           [`${c.score} PUNTOS${c.newBest ? '  ·  RÉCORD' : ''}`, 'B', '#fff'],
-           [`Salida de rampa ${(c.exitSpeed / 10).toFixed(1)} m/s · gas ${c.gas.toFixed(0)}%`, 'S', SUB],
-           [`Total ${totalPoints().toLocaleString('es-AR')} pts${r ? ` · puesto mundial #${r}` : ''}`, 'S', SUB],
-           [last ? `Superaste los ${LEVELS.length} niveles.` : `Desbloqueaste el nivel ${level + 2}.`, 'S', OK],
-           [act('TOCÁ O ▲ PARA SEGUIR', '↑ O ESPACIO · SEGUIR'), 'A', RED]], 320));
+    placeShare(panel([[T('winTitle'), 'T', OK],
+           [T('winPts', c.score, c.newBest), 'B', '#fff'],
+           [T('winExit', (c.exitSpeed / 10).toFixed(1), c.gas.toFixed(0)), 'S', SUB],
+           [T('winTotal', fmtN(totalPoints()), r), 'S', SUB],
+           [last ? T('allCleared', LEVELS.length) : T('unlockedN', level + 2), 'S', OK],
+           [act(T('contTouch'), T('contKey')), 'A', RED]], 320));
   } else if (c.mode === 'crashed') {
-    const m = c.land, row = (ok, label, v, lim) => [`${ok ? '✓' : '✕'}  ${label} ${v}  ·  máx ${lim}`, 'S', ok ? OK : '#ff6b77'];
-    placeShare(panel([['IMPACTO · AUTO DESTRUIDO', 'T', '#ff4a58'],
-           row(m.ang <= 12, 'INCLINACIÓN', m.ang.toFixed(0) + '°', '12°'),
-           row(m.vy <= 12, 'CAÍDA', m.vy.toFixed(1) + ' m/s', '12 m/s'),
-           row(m.vx <= 13, 'DERIVA', m.vx.toFixed(1) + ' m/s', '13 m/s'),
-           ...(m.w > 2 ? [row(false, 'GIRO', m.w.toFixed(1) + ' rad/s', '2 rad/s')] : []),
+    const m = c.land, row = (ok, label, v, lim) => [`${ok ? '✓' : '✕'}  ${label} ${v}  ·  ${T('maxLbl')} ${lim}`, 'S', ok ? OK : '#ff6b77'];
+    placeShare(panel([[T('crashTitle'), 'T', '#ff4a58'],
+           row(m.ang <= 12, T('tilt'), m.ang.toFixed(0) + '°', '12°'),
+           row(m.vy <= 12, T('sink'), m.vy.toFixed(1) + ' m/s', '12 m/s'),
+           row(m.vx <= 13, T('drift'), m.vx.toFixed(1) + ' m/s', '13 m/s'),
+           ...(m.w > 2 ? [row(false, T('spin'), m.w.toFixed(1) + ' rad/s', '2 rad/s')] : []),
            [crashTip(m, c.msg), 'S', '#e6e7ea'],
            [retry, 'A', RED]], 320));
   } else if (c.mode === 'ramp' && (c.slip > 0 || (!c.suction && c.s > 180))) {
-    banner(c.slip > 0 ? '¡SE DESPEGA! PRENDÉ LA SUCCIÓN' : 'SUCCIÓN APAGADA', 158, '#ff4a58');
+    banner(T(c.slip > 0 ? 'slipping' : 'suctionIsOff'), 158, '#ff4a58');
   } else if (c.mode === 'air' && !c.armed && keys.up) {
-    banner('SOLTÁ Y VOLVÉ A APRETAR PARA EL PROPULSOR', 158, SILVER);
+    banner(T('rearm'), 158, SILVER);
   }
   if (c.slowLeft > 0) {
     ctx.fillStyle = 'rgba(80,140,255,0.06)'; ctx.fillRect(-3000, 0, 6000, H);
-    banner(`CÁMARA LENTA  ${c.slowLeft.toFixed(1)} s`, 180, '#7fb8ff');
+    banner(T('slowmo', c.slowLeft.toFixed(1)), 180, '#7fb8ff');
     ctx.fillStyle = '#141a26'; ctx.fillRect(W / 2 - 70, 191, 140, 2);
     ctx.fillStyle = '#7fb8ff'; ctx.fillRect(W / 2 - 70, 191, 140 * c.slowLeft / SLOW_TIME, 2);
   } else if (canSlow()) {
-    txt(ctx, `${act('LENTO', 'ESPACIO')}: CÁMARA LENTA 5 s`, W / 2, 180, `500 10px ${FU}`, 'rgba(127,184,255,0.85)', 'center', 1.5);
+    txt(ctx, T('slowAvail', act(T('keySlow'), T('keySpace'))), W / 2, 180, `500 10px ${FU}`, 'rgba(127,184,255,0.85)', 'center', 1.5);
   }
-  if (c.mode === 'air' && c.msg && !(!c.armed && keys.up)) banner(c.msg, 158, '#ff4a58');
+  if (c.mode === 'air' && c.msg && !(!c.armed && keys.up)) banner(T(c.msg), 158, '#ff4a58');
   const hint = coachHint();
   if (hint) coachBanner(hint);
   if (paused) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-3000, 0, 6000, H);
-    txt(ctx, 'PAUSA', W / 2, 430, `400 26px ${FD}`, '#fff', 'center', 6);
-    txt(ctx, act('TOCÁ PARA SEGUIR', 'P O CUALQUIER FLECHA PARA SEGUIR'), W / 2, 470, `600 11px ${FU}`, RED, 'center', 2);
+    txt(ctx, T('paused'), W / 2, 430, `400 26px ${FD}`, '#fff', 'center', 6);
+    txt(ctx, act(T('resumeTouch'), T('resumeKey')), W / 2, 470, `600 11px ${FU}`, RED, 'center', 2);
   }
 }
 
 // the one change that would have saved the attempt
 function crashTip(m, slipped) {
-  if (slipped) return 'Mantené la succión prendida en la pared.';
-  if (m.ang > 90) return 'Empezá a girar apenas salís de la rampa.';
-  if (m.ang > 12) return 'Enderezalo antes: falta girar un poco más.';
-  if (m.vy > 12) return `Mantené ${isTouch ? '▲' : '↑'} más tiempo cerca del piso.`;
-  if (m.vx > 13) return 'Inclinate contra la deriva para frenarla.';
-  return 'Soltá el giro antes de tocar el piso.';
+  if (slipped) return T('tipSlip');
+  if (m.ang > 90) return T('tipFlip');
+  if (m.ang > 12) return T('tipTilt');
+  if (m.vy > 12) return T('tipSink', isTouch ? '▲' : '↑');
+  if (m.vx > 13) return T('tipDrift');
+  return T('tipSpin');
 }
 
 // first-run guidance: what to do right now, until the first level is passed
@@ -1462,18 +1623,18 @@ function coachHint() {
   const c = state;
   if (!coachOn() || paused) return null;
   const up = isTouch ? '▲' : '↑', dn = isTouch ? '▼' : '↓', l = isTouch ? '⟲' : '←', r = isTouch ? '⟳' : '→';
-  if (c.mode === 'ready') return `MANTENÉ ${up} PARA ACELERAR`;
+  if (c.mode === 'ready') return T('cReady', up);
   if (c.mode === 'ramp') {
-    if (c.s < P.length - 320) return `MANTENÉ ${up} · LA SUCCIÓN TE PEGA A LA PARED`;
+    if (c.s < P.length - 320) return T('cWall', up);
     const pts = predictPath(), ex = pts ? pts[pts.length - 1][0] : 0, L = lvl();
-    if (Math.abs(ex - L.pad) <= L.w / 2) return `¡AHÍ! SOLTÁ ${up}: LA LÍNEA ESTÁ EN VERDE`;
-    return ex > L.pad ? `SEGUÍ CON ${up} HASTA QUE LA LÍNEA LLEGUE A LA ZONA` : `TE PASÁS: FRENÁ CON ${dn}`;
+    if (Math.abs(ex - L.pad) <= L.w / 2) return T('cNow', up);
+    return ex > L.pad ? T('cMore', up) : T('cBrake', dn);
   }
   if (c.mode === 'air') {
     const a = norm(c.th);
-    if (Math.abs(a) > 0.35) return `GIRÁ CON ${a > 0 ? l : r} HASTA PONERLO DERECHO`;
-    if (c.vy > 90) return `¡FRENÁ LA CAÍDA! MANTENÉ ${up}`;
-    return 'BIEN · BAJÁ SUAVE DENTRO DE LA ZONA';
+    if (Math.abs(a) > 0.35) return T('cTurn', a > 0 ? l : r);
+    if (c.vy > 90) return T('cSink', up);
+    return T('cGood');
   }
   return null;
 }
@@ -1510,11 +1671,11 @@ function draw() {
   // landing zone off screen
   const padSX = lvl().pad - camX;
   if (padSX + lvl().w / 2 < 0 && state.mode !== 'crashed') {
-    txt(ctx, `◀ ZONA ${Math.max(0, Math.round((state.x - lvl().pad) / 10))} m`, 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(91,227,138,0.85)', 'left', 1.5);
+    txt(ctx, T('zoneOff', Math.max(0, Math.round((state.x - lvl().pad) / 10))), 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(91,227,138,0.85)', 'left', 1.5);
   }
   // arrow toward the ramp when it is off screen
   if (EXIT_X - camX > W) {
-    txt(ctx, `RAMPA ${Math.round((EXIT_X - state.x) / 10)} m ▶`, W - 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(255,255,255,0.4)', 'right', 1.5);
+    txt(ctx, T('rampOff', Math.round((EXIT_X - state.x) / 10)), W - 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(255,255,255,0.4)', 'right', 1.5);
   }
   if (flash) { ctx.fillStyle = `rgba(${flashCol},${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
   drawHeader();
@@ -1592,6 +1753,7 @@ function drawBg(now, dt) {
 }
 
 // ---------- loop ----------
+applyLang();
 reset(false);
 syncSoundLabels();
 refreshMenu();
