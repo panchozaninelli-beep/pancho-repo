@@ -132,7 +132,15 @@
     padding: 7px 10px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.55); }
   .tb:hover { color: #fff; border-color: var(--line-strong); }
   #shareBtn { all: unset; position: absolute; cursor: pointer; font: 700 11px var(--f-ui); letter-spacing: 0.2em; color: #000;
-    background: var(--red); padding: 10px 14px; box-shadow: 0 8px 24px -8px rgba(255, 42, 58, 0.8); }
+    background: var(--red); padding: 10px 14px; }
+  /* share: red, with a very slight float and breathing glow */
+  @keyframes drift {
+    0%, 100% { transform: translateY(0); box-shadow: 0 8px 22px -12px rgba(255, 42, 58, 0.55); }
+    50% { transform: translateY(-1.5px); box-shadow: 0 12px 28px -12px rgba(255, 42, 58, 0.9); }
+  }
+  #shareBtn, .ghost.share { animation: drift 3s ease-in-out infinite; }
+  .ghost.share { background: var(--red); border-color: var(--red); color: #000; font-weight: 700; }
+  .ghost.share:hover { border-color: #fff; }
   #shareBtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .chase { margin: 0; font: 500 13px/1.45 var(--f-ui); color: #c4c7ce; }
   .chase b { color: #fff; font-weight: 600; }
@@ -143,12 +151,14 @@
     color: #fff; background: #0a0a0c; user-select: text; -webkit-user-select: text; white-space: pre-wrap; }
   #pad { display: none; gap: 8px; padding: 10px 0 12px; }
   body.touch #pad { display: flex; }
+  body.touch #fsBtn { display: none; }
   .btn { width: 62px; height: 58px; box-sizing: border-box; border: 1px solid #2a2b30; border-radius: 10px; background: linear-gradient(180deg, #121216, #060608);
     color: var(--silver); font: 600 20px var(--f-ui); display: flex; align-items: center; justify-content: center; }
   .btn.on { border-color: var(--red); color: #fff; background: linear-gradient(180deg, #2a0509, #110204); box-shadow: 0 0 16px rgba(255, 42, 58, 0.45); }
   .btn.wide { width: 88px; font-size: 11px; letter-spacing: 0.14em; }
   @media (prefers-reduced-motion: reduce) {
     .screen, .primary, #bg, #intro span { transition: none; }
+    #shareBtn, .ghost.share { animation: none; }
     body.intro #bg, body.intro #splash { clip-path: none; opacity: 0; }
   }
 </style>
@@ -179,7 +189,7 @@
       <button class="ghost" id="levelsBtn">NIVELES</button>
       <button class="ghost" id="rankBtn">RANKING</button>
       <button class="ghost" id="soundBtn">SONIDO</button>
-      <button class="ghost" id="shareMenu">COMPARTIR</button>
+      <button class="ghost share" id="shareMenu">COMPARTIR</button>
     </div>
     <p class="chase" id="chase" hidden></p>
     <div class="stats">
@@ -225,6 +235,7 @@
       <button class="tb" id="menuBtn">MENÚ</button>
       <span class="gap"></span>
       <button class="tb" id="pauseBtn">PAUSA</button>
+      <button class="tb" id="fsBtn">PANTALLA COMPLETA</button>
       <button class="tb" id="soundTb">SONIDO</button>
     </div>
     <button id="shareBtn" hidden>COMPARTIR</button>
@@ -240,7 +251,9 @@
 
 <script>
 // ---------- setup ----------
-const W = 460, H = 1000, FLOOR = 700, G = 160;      // world units: px, px/s, 10 px = 1 m
+const H = 1000, FLOOR = 700, G = 160, COL = 460;     // world units: px, px/s, 10 px = 1 m
+// W is the view width: COL on phones, wider on landscape computer screens (the ramp stays at the right edge)
+let W = COL;
 const THRUST = 330, SPIN = 7, SUCTION = 1.7 * G;
 const LEFT = -1500;                                   // the world extends left of the screen; the camera follows the car
 const FD = 'Michroma, "Chakra Petch", sans-serif', FU = '"Chakra Petch", "Arial Narrow", sans-serif';
@@ -260,6 +273,7 @@ function resize() {
   const gs = getComputedStyle($('game'));
   const availH = innerHeight - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - (isTouch ? 82 : 0);
   const availW = innerWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight);
+  W = !isTouch && availW / availH > COL / H ? Math.min(1900, Math.round(H * availW / availH)) : COL;
   const s = Math.min(availW / W, availH / H);
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
   $('stage').style.width = W * s + 'px';
@@ -634,6 +648,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape') { goMenu(); return; }
   if (e.code === 'KeyM') setMuted(!muted);
   if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyF') { toggleFullscreen(); return; }
   if (paused) { if (KEYMAP[e.code] || e.code === 'Space') { e.preventDefault(); togglePause(false); } return; }
   if (KEYMAP[e.code] === 'up' && !e.repeat && canRetry()) reset(true);   // one press of ↑ goes straight back up the ramp
   const n = /^Digit([1-9])$/.exec(e.code);
@@ -783,6 +798,19 @@ $('startBtn').addEventListener('click', () => startGame());
 $('shareMenu').addEventListener('click', shareScore);
 $('shareBtn').addEventListener('click', e => { e.stopPropagation(); shareScore(); });
 $('pauseBtn').addEventListener('click', e => { e.stopPropagation(); togglePause(); });
+function toggleFullscreen() {
+  const d = document;
+  if (d.fullscreenElement) { d.exitFullscreen && d.exitFullscreen().catch(() => {}); return; }
+  const el = d.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) { toast('ESTE NAVEGADOR NO PERMITE PANTALLA COMPLETA'); return; }
+  Promise.resolve(req.call(el)).catch(() => toast('ESTE NAVEGADOR NO PERMITE PANTALLA COMPLETA'));
+}
+$('fsBtn').addEventListener('click', e => { e.stopPropagation(); toggleFullscreen(); });
+document.addEventListener('fullscreenchange', () => {
+  $('fsBtn').textContent = document.fullscreenElement ? 'SALIR DE PANTALLA COMPLETA' : 'PANTALLA COMPLETA';
+  resize();
+});
 $('levelsBtn').addEventListener('click', () => { renderLevels(); openSheet('levelsSheet'); });
 $('rankBtn').addEventListener('click', () => { renderRank(); openSheet('rankSheet'); });
 $('soundBtn').addEventListener('click', () => { setMuted(!muted); ensureAudio(); });
@@ -839,7 +867,7 @@ function reset(next) {
             passed: false, onPad: false, miss: 0, slowUsed: false, slowLeft: 0, newBest: false,
             endedAt: 0, path: [], land: null,
             use: { up: 0, down: 0, left: 0, right: 0, space: 0 } };
-  particles = []; trail = []; flash = 0; camX = 0; shake = 0;
+  particles = []; trail = []; flash = 0; camX = COL - W; shake = 0;
   placeOnTrack();
   syncSuctionBtn();
 }
@@ -903,7 +931,7 @@ function stepAir(dt) {
   c.vx += ax * dt; c.vy += ay * dt; c.vx *= 1 - 0.04 * dt;
   c.x += c.vx * dt; c.y += (c.vy > 0 ? c.vy * k : c.vy) * dt; c.th += c.w * dt;
   if (c.x < LEFT + 40) { c.x = LEFT + 40; c.vx = Math.abs(c.vx) * 0.4; }
-  if (c.x > W - 40) { c.x = W - 40; c.vx = -Math.abs(c.vx) * 0.4; }
+  if (c.x > COL - 40) { c.x = COL - 40; c.vx = -Math.abs(c.vx) * 0.4; }
   trail.push(tailPos()); if (trail.length > 30) trail.shift();
 
   // contact with the floor
@@ -992,7 +1020,8 @@ function step(dt) {
     s.x += wnd * 5 * dt;
     if (s.x > W + 40) s.x -= W + 80; else if (s.x < -40) s.x += W + 80;
   }
-  const target = c.mode === 'ready' || c.mode === 'ramp' ? 0 : Math.max(LEFT, Math.min(0, c.x - 150));
+  const base = COL - W;   // the ramp sits at the right edge of the view
+  const target = c.mode === 'ready' || c.mode === 'ramp' ? base : Math.max(LEFT, Math.min(base, c.x - 150));
   camX += (target - camX) * Math.min(1, dt * 5);
 }
 
@@ -1255,7 +1284,7 @@ function drawHUD() {
   // console plate: fade to black, silver hairline with a red centre mark
   let g = ctx.createLinearGradient(0, top - 40, 0, top + 10);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, '#000');
-  ctx.fillStyle = g; ctx.fillRect(0, top - 40, W, 50); ctx.fillStyle = '#000'; ctx.fillRect(0, top + 10, W, H - top);
+  ctx.fillStyle = g; ctx.fillRect(-3000, top - 40, 6000, 50); ctx.fillStyle = '#000'; ctx.fillRect(-3000, top + 10, 6000, H - top);
   g = ctx.createLinearGradient(16, 0, W - 16, 0);
   g.addColorStop(0, 'rgba(201,204,212,0)'); g.addColorStop(0.5, 'rgba(201,204,212,0.4)'); g.addColorStop(1, 'rgba(201,204,212,0)');
   ctx.fillStyle = g; ctx.fillRect(16, top, W - 32, 1);
@@ -1375,7 +1404,7 @@ function drawOverlay() {
     banner('SOLTÁ Y VOLVÉ A APRETAR PARA EL PROPULSOR', 158, SILVER);
   }
   if (c.slowLeft > 0) {
-    ctx.fillStyle = 'rgba(80,140,255,0.06)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(80,140,255,0.06)'; ctx.fillRect(-3000, 0, 6000, H);
     banner(`CÁMARA LENTA  ${c.slowLeft.toFixed(1)} s`, 180, '#7fb8ff');
     ctx.fillStyle = '#141a26'; ctx.fillRect(W / 2 - 70, 191, 140, 2);
     ctx.fillStyle = '#7fb8ff'; ctx.fillRect(W / 2 - 70, 191, 140 * c.slowLeft / SLOW_TIME, 2);
@@ -1386,7 +1415,7 @@ function drawOverlay() {
   const hint = coachHint();
   if (hint) coachBanner(hint);
   if (paused) {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-3000, 0, 6000, H);
     txt(ctx, 'PAUSA', W / 2, 430, `400 26px ${FD}`, '#fff', 'center', 6);
     txt(ctx, act('TOCÁ PARA SEGUIR', 'P O CUALQUIER FLECHA PARA SEGUIR'), W / 2, 470, `600 11px ${FU}`, RED, 'center', 2);
   }
@@ -1435,7 +1464,7 @@ function coachBanner(text) {
 // the share button sits under the result card, positioned in canvas units
 function placeShare(yCanvas) {
   const b = $('shareBtn');
-  b.style.left = (24 / W * 100) + '%'; b.style.top = ((yCanvas + 10) / H * 100) + '%';
+  b.style.left = ((colX + 24) / fullW * 100) + '%'; b.style.top = ((yCanvas + 10) / H * 100) + '%';
   shareWanted = true;
 }
 let shareWanted = false;
@@ -1459,15 +1488,21 @@ function draw() {
     txt(ctx, `◀ ZONA ${Math.max(0, Math.round((state.x - lvl().pad) / 10))} m`, 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(91,227,138,0.85)', 'left', 1.5);
   }
   // arrow toward the ramp when it is off screen
-  if (camX < -W) {
+  if (EXIT_X - camX > W) {
     txt(ctx, `RAMPA ${Math.round((EXIT_X - state.x) / 10)} m ▶`, W - 14, FLOOR - 16, `600 10px ${FU}`, 'rgba(255,255,255,0.4)', 'right', 1.5);
   }
   if (flash) { ctx.fillStyle = `rgba(${flashCol},${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
   drawHeader();
-  drawHUD();
-  shareWanted = false;
-  drawOverlay();
+  inColumn(() => { drawHUD(); shareWanted = false; drawOverlay(); });
   $('shareBtn').hidden = !shareWanted;
+}
+
+// draw phone-layout UI centred on a wide view: W reads as COL inside
+let colX = 0, fullW = COL;
+function inColumn(fn) {
+  fullW = W; colX = (W - COL) / 2;
+  ctx.save(); ctx.translate(colX, 0); W = COL;
+  try { fn(); } finally { W = fullW; ctx.restore(); }
 }
 
 // ---------- splash & menu backdrop: the car flying over a dark floor ----------
