@@ -603,8 +603,9 @@ const levelsPassed = () => Object.keys(bests).length;
 
 // ---------- ranking: the artifact's shared db on claude.ai, Supabase when self-hosted, else local ----------
 // Self-hosting: run supabase.sql in your Supabase project, then paste its URL and public anon key here.
-const SUPABASE_URL = '';
-const SUPABASE_KEY = '';
+const SUPABASE_URL = 'https://gtqsyrmsjskodpfhdltu.supabase.co';
+// public anon key: safe to ship, the table is only writable through submit_score
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0cXN5cm1zanNrb2RwZmhkbHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxOTQyOTcsImV4cCI6MjEwNzc3MDI5N30.CWXn_vmIq6xwLOXH0nwRyAL2P4mD4Z4Qexi1QS2bSUM';
 const ARTIFACT_URL = 'https://claude.ai/artifact/7hPwpAccKhfC2vqipYFvRf';
 const rank = { mode: 'local', db: null, uid: null, rows: [], live: false, readOnly: false, lastSent: '', owner: false };
 let deviceToken = store.get('t47_token');

@@ -32,9 +32,8 @@ El HUD mide cuántos segundos usaste cada propulsor, el gas restante y la actitu
 
 En claude.ai el ranking usa la base de datos del artifact, donde solo el dueño y sus colaboradores pueden guardar. Para que cualquiera pueda entrar al ranking:
 
-1. **Supabase** (gratis): creá un proyecto en https://supabase.com, abrí *SQL Editor*, pegá el contenido de `supabase.sql` y ejecutalo.
-2. En *Project Settings → API* copiá la **Project URL** y la clave **anon public**, y pegalas en `SUPABASE_URL` y `SUPABASE_KEY` al principio del ranking en `index.html`. La clave anon es pública por diseño; la tabla solo se puede escribir a través de `submit_score`.
-3. **GitHub Pages**: en el repo, *Settings → Pages → Build and deployment*, elegí *Deploy from a branch* y la rama con `index.html` (carpeta `/`). El juego queda en `https://<usuario>.github.io/<repo>/`.
+1. **Supabase**: ya configurado en el proyecto `roadster` (región São Paulo). `index.html` apunta a él con su clave pública *anon* (es pública por diseño; la tabla solo se escribe a través de `submit_score`). `supabase.sql` tiene el esquema por si hay que recrearlo.
+2. **GitHub Pages**: en el repo, *Settings → Pages → Build and deployment*, elegí *Deploy from a branch* y la rama con `index.html` (carpeta `/`). El juego queda en `https://<usuario>.github.io/<repo>/`.
 
 Cada nombre lo "reclama" el primer dispositivo que lo usa; nadie más puede guardar puntajes con ese nombre. Los puntajes los calcula el navegador, así que alguien con conocimientos técnicos podría inventar uno: para un ranking competitivo serio haría falta validar las partidas en el servidor.
 
