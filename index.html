@@ -157,13 +157,17 @@
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
   #shareText { all: unset; box-sizing: border-box; width: 100%; min-height: 96px; padding: 12px; border: 1px solid var(--line-strong); font: 500 14px/1.5 var(--f-ui);
     color: #fff; background: #0a0a0c; user-select: text; -webkit-user-select: text; white-space: pre-wrap; }
-  #pad { display: none; gap: 8px; padding: 10px 0 12px; }
+  #pad { display: none; gap: 8px; padding: 10px 12px 12px; width: 100%; max-width: 520px; box-sizing: border-box; justify-content: space-between; align-items: center; }
+  #pad .grp { display: flex; gap: 6px; }
   body.touch #pad { display: flex; }
   body.touch #fsBtn { display: none; }
   .btn { width: 62px; height: 58px; box-sizing: border-box; border: 1px solid #2a2b30; border-radius: 10px; background: linear-gradient(180deg, #121216, #060608);
     color: var(--silver); font: 600 20px var(--f-ui); display: flex; align-items: center; justify-content: center; }
   .btn.on { border-color: var(--red); color: #fff; background: linear-gradient(180deg, #2a0509, #110204); box-shadow: 0 0 16px rgba(255, 42, 58, 0.45); }
-  .btn.wide { width: 88px; font-size: 11px; letter-spacing: 0.14em; }
+  .btn.wide { width: 70px; font-size: 10px; letter-spacing: 0.1em; }
+  .btn.small { width: 46px; }
+  .btn.big { width: 96px; height: 66px; font-size: 26px; border-color: #3a3b42; }
+  .btn { touch-action: none; }
   @media (prefers-reduced-motion: reduce) {
     .screen, .primary, #bg, #intro span { transition: none; }
     #shareBtn, .ghost.share { animation: none; }
@@ -255,11 +259,9 @@
     <button id="shareBtn" hidden data-i18n="share">COMPARTIR</button>
   </div>
   <div id="pad">
-    <div class="btn" data-k="left">⟲</div>
-    <div class="btn" data-k="down">▼</div>
-    <div class="btn" data-k="up">▲</div>
-    <div class="btn" data-k="right">⟳</div>
-    <div class="btn wide" data-k="space">SUCCIÓN</div>
+    <div class="grp"><div class="btn" data-k="left">⟲</div><div class="btn" data-k="right">⟳</div></div>
+    <div class="grp"><div class="btn small" data-k="down">▼</div><div class="btn wide" data-k="space">SUCCIÓN</div></div>
+    <div class="grp"><div class="btn big" data-k="up">▲</div></div>
   </div>
 </div>
 
@@ -350,6 +352,9 @@ const STR = {
     cNow: k => `¡AHÍ! SOLTÁ ${k}: LA LÍNEA ESTÁ EN VERDE`, cMore: k => `SEGUÍ CON ${k} HASTA QUE LA LÍNEA LLEGUE A LA ZONA`,
     cBrake: k => `TE PASÁS: FRENÁ CON ${k}`, cTurn: k => `GIRÁ CON ${k} HASTA PONERLO DERECHO`,
     cSink: k => `¡FRENÁ LA CAÍDA! MANTENÉ ${k}`, cGood: 'BIEN · BAJÁ SUAVE DENTRO DE LA ZONA',
+    cAuto: k => `SE ENDEREZA SOLO · VOS FRENÁ CON ${k}`, autoLevel: 'ENDEREZANDO…',
+    mobileAssist: 'Celular: el auto se endereza solo.', coach3Touch: 'Se endereza solo: vos frená con ▲.',
+    tipTiltAuto: 'Dale tiempo a enderezarse: no gires a mano.',
   },
   en: {
     eyebrow: 'MULTIMODE SUCTION · COLD GAS',
@@ -418,6 +423,9 @@ const STR = {
     cNow: k => `NOW! RELEASE ${k}: THE LINE IS GREEN`, cMore: k => `KEEP ${k} UNTIL THE LINE REACHES THE ZONE`,
     cBrake: k => `TOO FAR: BRAKE WITH ${k}`, cTurn: k => `ROTATE WITH ${k} UNTIL IT'S LEVEL`,
     cSink: k => `BRAKE THE FALL! HOLD ${k}`, cGood: 'GOOD · COME DOWN SOFTLY INSIDE THE ZONE',
+    cAuto: k => `IT LEVELS ITSELF · YOU BRAKE WITH ${k}`, autoLevel: 'LEVELING…',
+    mobileAssist: 'Phone mode: the car levels itself.', coach3Touch: 'It levels itself: you brake with ▲.',
+    tipTiltAuto: 'Give it time to level: avoid rotating by hand.',
   },
 };
 let lang = store.get('t47_lang') || ((navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en');
@@ -445,7 +453,7 @@ function setLang(l) {
 function resize() {
   const dpr = devicePixelRatio || 1;
   const gs = getComputedStyle($('game'));
-  const availH = innerHeight - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - (isTouch ? 82 : 0);
+  const availH = innerHeight - parseFloat(gs.paddingTop) - parseFloat(gs.paddingBottom) - (isTouch ? 90 : 0);
   const availW = innerWidth - parseFloat(gs.paddingLeft) - parseFloat(gs.paddingRight);
   W = !isTouch && availW / availH > COL / H ? Math.min(1900, Math.round(H * availW / availH)) : COL;
   const s = Math.min(availW / W, availH / H);
@@ -511,6 +519,10 @@ const LEVELS = [
 ];
 const EXIT_X = 190;
 const EASY_LEVELS = 4, SLOWMO = 0.3, SLOW_TIME = 5;   // levels 1-4 get one 5 s slow-motion assist per attempt
+// touch screens are slower to play than a keyboard: on phones the car levels itself, falls slower
+// and lands within wider limits; computers keep the original handling
+const ASSIST = isTouch ? { fall: 0.72, autoLevel: true } : { fall: 1, autoLevel: false };
+const LIM = isTouch ? { tilt: 18, sink: 15, drift: 16 } : { tilt: 12, sink: 12, drift: 13 };
 let level = 0, unlocked = 0;
 const lvl = () => LEVELS[level];
 const padDist = L => Math.round((EXIT_X - L.pad) / 10);
@@ -1107,11 +1119,23 @@ function stepAir(dt) {
   const c = state;
   // slow motion only slows the fall: gravity and downward motion; thrusters, sideways and upward motion stay normal
   const k = c.slowLeft > 0 ? SLOWMO : 1;
-  let ax = lvl().wind, ay = G * k, al = 0;
+  let ax = lvl().wind, ay = G * k * ASSIST.fall, al = 0;
   const ux = Math.sin(c.th), uy = -Math.cos(c.th);   // car's "roof" direction
   if (keys.up && c.armed && c.gas > 0) { ax += ux * THRUST; ay += uy * THRUST; c.gas -= 18 * dt; c.use.up += dt; emit('main'); }
   if (keys.left && c.gas > 0) { al -= SPIN; c.gas -= 10 * dt; c.use.left += dt; emit('ccw'); }
   if (keys.right && c.gas > 0) { al += SPIN; c.gas -= 10 * dt; c.use.right += dt; emit('cw'); }
+  // phone assist: with no rotate button held, the rotation thrusters level the car on their own
+  c.autoLeveling = false;
+  if (ASSIST.autoLevel && !keys.left && !keys.right && c.gas > 0) {
+    // lean so the main thruster steers toward the landing zone; level out for the last stretch
+    const L = lvl(), wantVx = Math.max(-150, Math.min(150, (L.pad - c.x) * 0.9));
+    const lean = FLOOR - c.y > 90 ? Math.max(-0.4, Math.min(0.4, (wantVx - c.vx) / 260)) : 0;
+    const u = Math.max(-SPIN, Math.min(SPIN, norm(lean - c.th) * 14 - c.w * 5));
+    if (Math.abs(u) > 0.6) {
+      al += u; c.gas -= 4 * dt * Math.abs(u) / SPIN; c.autoLeveling = true;
+      if (Math.random() < 0.5) emit(u > 0 ? 'cw' : 'ccw');
+    }
+  }
   c.gas = Math.max(0, c.gas);
   c.w += al * dt; c.w *= 1 - 0.35 * dt;
   c.vx += ax * dt; c.vy += ay * dt; c.vx *= 1 - 0.04 * dt;
@@ -1134,9 +1158,9 @@ function touchdown() {
   const vy = c.vy / 10, vx = Math.abs(c.vx) / 10, w = Math.abs(c.w);
   c.land = { ang, vy, vx, w };
   const r = [];
-  if (ang > 12) r.push(ang > 90 ? 'CAYÓ DE TECHO' : `INCLINADO ${ang.toFixed(0)}°`);
-  if (vy > 12) r.push(`IMPACTO ${vy.toFixed(1)} m/s`);
-  if (vx > 13) r.push(`DERRAPE ${vx.toFixed(1)} m/s`);
+  if (ang > LIM.tilt) r.push(ang > 90 ? 'CAYÓ DE TECHO' : `INCLINADO ${ang.toFixed(0)}°`);
+  if (vy > LIM.sink) r.push(`IMPACTO ${vy.toFixed(1)} m/s`);
+  if (vx > LIM.drift) r.push(`DERRAPE ${vx.toFixed(1)} m/s`);
   if (w > 2) r.push('GIRANDO');
   c.reasons = r;
   if (r.length) {
@@ -1340,7 +1364,7 @@ function predictPath() {
   } else return null;
   const pts = [[x, y]], dt = 1 / 40;
   for (let i = 0; i < 320 && y < FLOOR - 11; i++) {
-    vx += L.wind * dt; vy += G * dt; vx *= 1 - 0.04 * dt;
+    vx += L.wind * dt; vy += G * ASSIST.fall * dt; vx *= 1 - 0.04 * dt;
     x += vx * dt; y += vy * dt;
     if (x < LEFT + 40) { x = LEFT + 40; vx = Math.abs(vx) * 0.4; }
     pts.push([x, y]);
@@ -1430,7 +1454,8 @@ function gauge(cx, cy, r, frac, value, unit, col) {
 function attitude(cx, cy, r, th, good) {
   ctx.strokeStyle = '#141418'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
   ctx.save(); ctx.shadowColor = OK; ctx.shadowBlur = 8; ctx.strokeStyle = OK; ctx.lineWidth = 6;
-  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2 - 0.21, -Math.PI / 2 + 0.21); ctx.stroke(); ctx.restore();
+  const safe = LIM.tilt * Math.PI / 180;
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2 - safe, -Math.PI / 2 + safe); ctx.stroke(); ctx.restore();
   ctx.strokeStyle = 'rgba(201,204,212,0.3)'; ctx.lineWidth = 1; ctx.beginPath();
   for (let i = 0; i < 12; i++) {
     const a = i * Math.PI / 6, r0 = r - 9, r1 = r - (i % 3 ? 12 : 15);
@@ -1483,8 +1508,9 @@ function drawHUD() {
   txt(ctx, T('gasFrio'), 66, 924, `500 9px ${FU}`, DIM, 'center', 2);
 
   // right: attitude
-  attitude(W - 66, 866, 42, c.th, ang <= 12);
-  txt(ctx, `${ang <= 12 ? '✓' : '✕'} ${T('attitude')} ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`, ang <= 12 ? OK : DIM, 'center', 2);
+  attitude(W - 66, 866, 42, c.th, ang <= LIM.tilt);
+  txt(ctx, c.autoLeveling ? T('autoLevel') : `${ang <= LIM.tilt ? '✓' : '✕'} ${T('attitude')} ${ang.toFixed(0)}°`, W - 66, 924, `500 9px ${FU}`,
+      c.autoLeveling ? '#7fb8ff' : ang <= LIM.tilt ? OK : DIM, 'center', 2);
 
   // centre: speed on the ramp, landing envelope in the air
   if (!air) {
@@ -1502,9 +1528,9 @@ function drawHUD() {
     pill(234, 910, 90, T('zonePill', padDist(lvl())), true, 'rgb(91,227,138)');
   } else {
     txt(ctx, T('envelope'), 230, 828, `500 8.5px ${FU}`, FAINT, 'center', 2);
-    envelopeRow(848, T('tilt'), ang.toFixed(0), '°', ang, 90, 12);
-    envelopeRow(874, T('sink'), vy.toFixed(1), 'm/s', vy, 40, 12);
-    envelopeRow(900, T('drift'), vx.toFixed(1), 'm/s', vx, 40, 13);
+    envelopeRow(848, T('tilt'), ang.toFixed(0), '°', ang, 90, LIM.tilt);
+    envelopeRow(874, T('sink'), vy.toFixed(1), 'm/s', vy, 40, LIM.sink);
+    envelopeRow(900, T('drift'), vx.toFixed(1), 'm/s', vx, 40, LIM.drift);
   }
 
   // thruster usage chips
@@ -1554,10 +1580,11 @@ function drawOverlay() {
       panel([[T('readyTitle', level + 1, padDist(L)), 'T', OK],
              [T('coach1'), 'S', '#e6e7ea'],
              [T('coach2'), 'S', '#e6e7ea'],
-             [T('coach3'), 'S', SUB]], 290);
+             [T(isTouch ? 'coach3Touch' : 'coach3'), 'S', SUB]], 290);
     } else {
       panel([[T('readyTitle', level + 1, padDist(L)), 'T', OK],
              [T('readyInfo', L.gas, w ? T('windLow', w > 0 ? '→' : '←', Math.abs(w).toFixed(1)) : T('noWindLow'), level < EASY_LEVELS), 'S', SUB],
+             ...(isTouch ? [[T('mobileAssist'), 'S', '#7fb8ff']] : []),
              [T('tips')[level], 'S', '#e6e7ea'],
              [act(T('holdStartTouch'), T('holdStartKey')), 'A', RED]], 290);
     }
@@ -1579,9 +1606,9 @@ function drawOverlay() {
   } else if (c.mode === 'crashed') {
     const m = c.land, row = (ok, label, v, lim) => [`${ok ? '✓' : '✕'}  ${label} ${v}  ·  ${T('maxLbl')} ${lim}`, 'S', ok ? OK : '#ff6b77'];
     placeShare(panel([[T('crashTitle'), 'T', '#ff4a58'],
-           row(m.ang <= 12, T('tilt'), m.ang.toFixed(0) + '°', '12°'),
-           row(m.vy <= 12, T('sink'), m.vy.toFixed(1) + ' m/s', '12 m/s'),
-           row(m.vx <= 13, T('drift'), m.vx.toFixed(1) + ' m/s', '13 m/s'),
+           row(m.ang <= LIM.tilt, T('tilt'), m.ang.toFixed(0) + '°', LIM.tilt + '°'),
+           row(m.vy <= LIM.sink, T('sink'), m.vy.toFixed(1) + ' m/s', LIM.sink + ' m/s'),
+           row(m.vx <= LIM.drift, T('drift'), m.vx.toFixed(1) + ' m/s', LIM.drift + ' m/s'),
            ...(m.w > 2 ? [row(false, T('spin'), m.w.toFixed(1) + ' rad/s', '2 rad/s')] : []),
            [crashTip(m, c.msg), 'S', '#e6e7ea'],
            [retry, 'A', RED]], 320));
@@ -1612,9 +1639,9 @@ function drawOverlay() {
 function crashTip(m, slipped) {
   if (slipped) return T('tipSlip');
   if (m.ang > 90) return T('tipFlip');
-  if (m.ang > 12) return T('tipTilt');
-  if (m.vy > 12) return T('tipSink', isTouch ? '▲' : '↑');
-  if (m.vx > 13) return T('tipDrift');
+  if (m.ang > LIM.tilt) return T(isTouch ? 'tipTiltAuto' : 'tipTilt');
+  if (m.vy > LIM.sink) return T('tipSink', isTouch ? '▲' : '↑');
+  if (m.vx > LIM.drift) return T('tipDrift');
   return T('tipSpin');
 }
 
@@ -1633,7 +1660,7 @@ function coachHint() {
   }
   if (c.mode === 'air') {
     const a = norm(c.th);
-    if (Math.abs(a) > 0.35) return T('cTurn', a > 0 ? l : r);
+    if (Math.abs(a) > 0.35) return ASSIST.autoLevel ? T('cAuto', up) : T('cTurn', a > 0 ? l : r);
     if (c.vy > 90) return T('cSink', up);
     return T('cGood');
   }

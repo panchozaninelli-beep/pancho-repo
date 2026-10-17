@@ -26,6 +26,8 @@ Hay 8 niveles: la zona queda más lejos o más chica, hay menos gas y aparece vi
 
 El juego está en **castellano e inglés**: el idioma se elige con el selector ES / EN del menú (la primera vez se toma el del navegador).
 
+**Modo celular:** en pantallas táctiles el auto se endereza solo y se inclina hacia la zona cuando frenás con ▲, cae un 28% más lento y los límites de aterrizaje son más amplios (18°, 15 m/s de caída, 16 m/s de deriva). En computadora el manejo es el original.
+
 El HUD mide cuántos segundos usaste cada propulsor, el gas restante y la actitud del auto. En celular aparecen botones táctiles.
 
 ## Ranking mundial abierto (sitio propio)
