@@ -1,0 +1,51 @@
+{
+  "carpeta_origen": "/Volumes/KINGSTON/Quince Sofia",
+  "carpeta_salida": "~/Desktop/Quince Sofia - video largo",
+
+  "secciones": [
+    "Drone",
+    "Inicio afuera",
+    "Habitación",
+    "Maquillaje 1",
+    "Primeras tomas salón",
+    "Maquillaje 2",
+    "Luces salón",
+    "Entrada",
+    "Lo que queda"
+  ],
+
+  "entrada": {
+    "carpeta": "Entrada",
+    "archivo": null,
+    "momento_puerta": "2:13.5",
+    "compases_despues_del_boom": 4,
+    "segundos_max_antes_del_boom": 40
+  },
+
+  "temas": [
+    { "archivo": "musica/01 apertura.mp3",  "empieza_con": "Drone" },
+    { "archivo": "musica/02 preparativos.mp3", "empieza_con": "Maquillaje 1" },
+    { "archivo": "musica/03 salon.mp3",     "empieza_con": "Primeras tomas salón" },
+    { "archivo": "musica/04 entrada.mp3",   "empieza_con": "Entrada", "boom": "1:04.5" },
+    { "archivo": "musica/05 vals.mp3",      "empieza_con": "IMG_4521.MOV" },
+    { "archivo": "musica/06 primer baile.mp3", "empieza_con": "IMG_4560.MOV" },
+    { "archivo": "musica/07 fiesta 1.mp3",  "empieza_con": "Lo que queda" },
+    { "archivo": "musica/08 fiesta 2.mp3" },
+    { "archivo": "musica/09 fiesta 3.mp3" },
+    { "archivo": "musica/10 cierre.mp3", "desde": "0:12" }
+  ],
+
+  "estilo": {
+    "compases_por_toma": 2,
+    "compases_min": 1,
+    "compases_max": 4,
+    "max_seguidas_mismo_tipo": 2,
+    "riser_compases": 2,
+    "riser_archivo": null
+  },
+
+  "salida": {
+    "resolucion": "3840x2160",
+    "fps": 30
+  }
+}
